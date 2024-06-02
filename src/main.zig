@@ -19,8 +19,39 @@ pub fn main() !void {
         c.SDL_WINDOW_RESIZABLE,
     ) orelse lib.sdlPanic();
 
-    const surface = c.SDL_GetWindowSurface(window) orelse lib.sdlPanic();
-    const pixels = surface.*.pixels;
-    _ = pixels;
+    const surface: *c.SDL_Surface = c.SDL_GetWindowSurface(window) orelse lib.sdlPanic();
+
+    const format = c.SDL_GetWindowPixelFormat(window);
+    if (format != c.SDL_PIXELFORMAT_RGB888) {
+        @panic("I've assumed RGB888 format so far, so expect wonky results if you push on!\n");
+    }
+
+    var pixels: [*]u8 = @ptrCast(surface.pixels orelse @panic("Surface has not allocated pixels"));
+    const width: usize = @intCast(surface.w);
+    const height: usize = @intCast(surface.h);
+    std.debug.print("\nwidth: {}, height: {}\n", .{ width, height });
+    var window_width: i32 = 0;
+    var window_height: i32 = 0;
+    c.SDL_GetWindowSize(window, &window_width, &window_height);
+    std.debug.print("window width: {}, height: {}\n", .{ window_width, window_height });
+    var drawable_width: i32 = 0;
+    var drawable_height: i32 = 0;
+    c.SDL_GL_GetDrawableSize(window, &drawable_width, &drawable_height);
+    std.debug.print("drawable width: {}, height: {}\n", .{ drawable_width, drawable_height });
+
+    for (0..height) |j| {
+        for (0..width) |i| {
+            pixels[(width * 4 * j) + (4 * i)] = 255; // B
+            pixels[(width * 4 * j) + (4 * i) + 1] = 0; // G
+            pixels[(width * 4 * j) + (4 * i) + 2] = 255; // R
+            pixels[(width * 4 * j) + (4 * i) + 3] = 0; // X
+        }
+    }
+
+    const update = c.SDL_UpdateWindowSurface(window);
+    if (update < 0) {
+        lib.sdlPanic();
+    }
+
     std.time.sleep(1_000_000_000);
 }
