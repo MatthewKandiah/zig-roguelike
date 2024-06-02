@@ -29,15 +29,6 @@ pub fn main() !void {
     var pixels: [*]u8 = @ptrCast(surface.pixels orelse @panic("Surface has not allocated pixels"));
     const width: usize = @intCast(surface.w);
     const height: usize = @intCast(surface.h);
-    std.debug.print("\nwidth: {}, height: {}\n", .{ width, height });
-    var window_width: i32 = 0;
-    var window_height: i32 = 0;
-    c.SDL_GetWindowSize(window, &window_width, &window_height);
-    std.debug.print("window width: {}, height: {}\n", .{ window_width, window_height });
-    var drawable_width: i32 = 0;
-    var drawable_height: i32 = 0;
-    c.SDL_GL_GetDrawableSize(window, &drawable_width, &drawable_height);
-    std.debug.print("drawable width: {}, height: {}\n", .{ drawable_width, drawable_height });
 
     for (0..height) |j| {
         for (0..width) |i| {
