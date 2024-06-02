@@ -32,7 +32,7 @@ pub fn main() !void {
 
     for (0..height) |j| {
         for (0..width) |i| {
-            pixels[(width * 4 * j) + (4 * i)] = 255; // B
+            pixels[(width * 4 * j) + (4 * i) + 0] = 255; // B
             pixels[(width * 4 * j) + (4 * i) + 1] = 0; // G
             pixels[(width * 4 * j) + (4 * i) + 2] = 255; // R
             pixels[(width * 4 * j) + (4 * i) + 3] = 0; // X
