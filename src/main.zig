@@ -5,7 +5,7 @@ const c = @cImport({
 const lib = @import("lib.zig");
 
 pub fn main() !void {
-    const sdl_init = c.SDL_Init(c.SDL_INIT_VIDEO);
+    const sdl_init = c.SDL_Init(c.SDL_INIT_VIDEO | c.SDL_INIT_TIMER);
     if (sdl_init < 0) {
         lib.sdlPanic();
     }
@@ -30,19 +30,21 @@ pub fn main() !void {
     const width: usize = @intCast(surface.w);
     const height: usize = @intCast(surface.h);
 
-    for (0..height) |j| {
-        for (0..width) |i| {
-            pixels[(width * 4 * j) + (4 * i) + 0] = 255; // B
-            pixels[(width * 4 * j) + (4 * i) + 1] = 0; // G
-            pixels[(width * 4 * j) + (4 * i) + 2] = 255; // R
-            pixels[(width * 4 * j) + (4 * i) + 3] = 0; // X
+    var run_count: usize = 0;
+    const timeout = c.SDL_GetTicks64() + 5_000; // 5 seconds
+    while (c.SDL_GetTicks64() < timeout) {
+        for (0..height) |j| {
+            for (0..width) |i| {
+                pixels[(width * 4 * j) + (4 * i) + 0] = @truncate(i + run_count); // B
+                pixels[(width * 4 * j) + (4 * i) + 1] = @truncate(run_count); // G
+                pixels[(width * 4 * j) + (4 * i) + 2] = @truncate(j); // R
+                pixels[(width * 4 * j) + (4 * i) + 3] = 0; // X
+            }
         }
+        const update = c.SDL_UpdateWindowSurface(window);
+        if (update < 0) {
+            lib.sdlPanic();
+        }
+        run_count += 1;
     }
-
-    const update = c.SDL_UpdateWindowSurface(window);
-    if (update < 0) {
-        lib.sdlPanic();
-    }
-
-    std.time.sleep(1_000_000_000);
 }
