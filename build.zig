@@ -18,6 +18,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    // TODO - consider static linking SDL2
     exe.linkSystemLibrary("SDL2");
     exe.linkLibC();
     b.installArtifact(exe);
