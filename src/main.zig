@@ -5,7 +5,7 @@ const c = @cImport({
 const lib = @import("lib.zig");
 
 pub fn main() !void {
-    const sdl_init = c.SDL_Init(c.SDL_INIT_VIDEO | c.SDL_INIT_TIMER);
+    const sdl_init = c.SDL_Init(c.SDL_INIT_VIDEO | c.SDL_INIT_TIMER | c.SDL_INIT_EVENTS);
     if (sdl_init < 0) {
         lib.sdlPanic();
     }
@@ -31,8 +31,9 @@ pub fn main() !void {
     const height: usize = @intCast(surface.h);
 
     var run_count: usize = 0;
-    const timeout = c.SDL_GetTicks64() + 5_000; // 5 seconds
-    while (c.SDL_GetTicks64() < timeout) {
+    var running = true;
+    var event: c.SDL_Event = undefined;
+    while (running) {
         for (0..height) |j| {
             for (0..width) |i| {
                 pixels[(width * 4 * j) + (4 * i) + 0] = @truncate(i + run_count); // B
@@ -45,6 +46,13 @@ pub fn main() !void {
         if (update < 0) {
             lib.sdlPanic();
         }
+
+        while (c.SDL_PollEvent(@ptrCast(&event)) != 0) {
+            if (event.type == c.SDL_QUIT) {
+                running = false;
+            }
+        }
+
         run_count += 1;
     }
 }
