@@ -19,7 +19,7 @@ pub fn main() !void {
         c.SDL_WINDOW_RESIZABLE,
     ) orelse lib.sdlPanic();
 
-    const surface: *c.SDL_Surface = c.SDL_GetWindowSurface(window) orelse lib.sdlPanic();
+    var surface: *c.SDL_Surface = c.SDL_GetWindowSurface(window) orelse lib.sdlPanic();
 
     const format = c.SDL_GetWindowPixelFormat(window);
     if (format != c.SDL_PIXELFORMAT_RGB888) {
@@ -27,8 +27,8 @@ pub fn main() !void {
     }
 
     var pixels: [*]u8 = @ptrCast(surface.pixels orelse @panic("Surface has not allocated pixels"));
-    const width: usize = @intCast(surface.w);
-    const height: usize = @intCast(surface.h);
+    var width: usize = @intCast(surface.w);
+    var height: usize = @intCast(surface.h);
 
     var run_count: usize = 0;
     var running = true;
@@ -50,6 +50,16 @@ pub fn main() !void {
         while (c.SDL_PollEvent(@ptrCast(&event)) != 0) {
             if (event.type == c.SDL_QUIT) {
                 running = false;
+            }
+            if (event.type == c.SDL_WINDOWEVENT) {
+                surface = c.SDL_GetWindowSurface(window) orelse lib.sdlPanic();
+                const updated_format = c.SDL_GetWindowPixelFormat(window);
+                if (updated_format != c.SDL_PIXELFORMAT_RGB888) {
+                    @panic("I've assumed RGB888 format so far, so expect wonky results if you push on!\n");
+                }
+                pixels = @ptrCast(surface.pixels orelse @panic("Surface has not allocated pixels"));
+                width = @intCast(surface.w);
+                height = @intCast(surface.h);
             }
         }
 
