@@ -33,13 +33,27 @@ pub fn main() !void {
     var run_count: usize = 0;
     var running = true;
     var event: c.SDL_Event = undefined;
+
+    var pos_x: usize = 250;
+    var pos_y: usize = 300;
+    const rect_w: usize = 100;
+    const rect_h: usize = 50;
+    const speed: usize = 20;
     while (running) {
         for (0..height) |j| {
             for (0..width) |i| {
                 pixels[(width * 4 * j) + (4 * i) + 0] = @truncate(i + run_count); // B
                 pixels[(width * 4 * j) + (4 * i) + 1] = @truncate(run_count); // G
                 pixels[(width * 4 * j) + (4 * i) + 2] = @truncate(j); // R
-                pixels[(width * 4 * j) + (4 * i) + 3] = 0; // X
+                pixels[(width * 4 * j) + (4 * i) + 3] = 255; // X
+            }
+        }
+        for (0..rect_h) |j| {
+            for (0..rect_w) |i| {
+                pixels[(width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 0] = 255; // B
+                pixels[(width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 1] = 0; // G
+                pixels[(width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 2] = 255; // R
+                pixels[(width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 3] = 255; // X
             }
         }
         const update = c.SDL_UpdateWindowSurface(window);
@@ -51,8 +65,15 @@ pub fn main() !void {
             if (event.type == c.SDL_QUIT) {
                 running = false;
             }
-            if (event.type == c.SDL_KEYDOWN and event.key.keysym.sym == c.SDLK_ESCAPE) {
-                running = false;
+            if (event.type == c.SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                    c.SDLK_ESCAPE => running = false,
+                    c.SDLK_UP => pos_y = lib.safeSub(pos_y, speed, 0),
+                    c.SDLK_DOWN => pos_y = lib.safeAdd(pos_y + rect_h, speed, height) - rect_h,
+                    c.SDLK_LEFT => pos_x = lib.safeSub(pos_x, speed, 0),
+                    c.SDLK_RIGHT => pos_x = lib.safeAdd(pos_x + rect_w, speed, width) - rect_w,
+                    else => {},
+                }
             }
             if (event.type == c.SDL_WINDOWEVENT) {
                 surface = c.SDL_GetWindowSurface(window) orelse lib.sdlPanic();
