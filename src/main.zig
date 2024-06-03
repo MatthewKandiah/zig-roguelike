@@ -51,6 +51,9 @@ pub fn main() !void {
             if (event.type == c.SDL_QUIT) {
                 running = false;
             }
+            if (event.type == c.SDL_KEYDOWN and event.key.keysym.sym == c.SDLK_ESCAPE) {
+                running = false;
+            }
             if (event.type == c.SDL_WINDOWEVENT) {
                 surface = c.SDL_GetWindowSurface(window) orelse lib.sdlPanic();
                 const updated_format = c.SDL_GetWindowPixelFormat(window);
