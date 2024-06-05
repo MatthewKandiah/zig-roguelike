@@ -40,22 +40,10 @@ pub fn main() !void {
     const rect_h: usize = 50;
     const speed: usize = 20;
     while (running) {
-        for (0..height) |j| {
-            for (0..width) |i| {
-                pixels[(width * 4 * j) + (4 * i) + 0] = @truncate(i + run_count); // B
-                pixels[(width * 4 * j) + (4 * i) + 1] = @truncate(run_count); // G
-                pixels[(width * 4 * j) + (4 * i) + 2] = @truncate(j); // R
-                pixels[(width * 4 * j) + (4 * i) + 3] = 255; // X
-            }
-        }
-        for (0..rect_h) |j| {
-            for (0..rect_w) |i| {
-                pixels[(width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 0] = 255; // B
-                pixels[(width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 1] = 0; // G
-                pixels[(width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 2] = 255; // R
-                pixels[(width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 3] = 255; // X
-            }
-        }
+        lib.drawRectangle(pixels, @truncate(run_count), @truncate(run_count), @truncate(run_count), 0, 0, width, height, width); // background
+        lib.drawRectangle(pixels, 255, 0, 255, pos_x, pos_y, rect_w, rect_h, width); // player
+        lib.drawRectangle(pixels, 0, 0, 50, 200, 200, 50, 50, width); // blocking rect
+
         const update = c.SDL_UpdateWindowSurface(window);
         if (update < 0) {
             lib.sdlPanic();

@@ -20,3 +20,23 @@ pub fn safeSub(x: usize, d: usize, min: usize) usize {
     if (result <= min) return min;
     return result;
 }
+
+pub fn drawRectangle(
+    pixels: [*]u8,
+    r: u8,
+    g: u8,
+    b: u8,
+    pos_x: usize,
+    pos_y: usize,
+    rec_width: usize,
+    rec_height: usize,
+    screen_width: usize,
+) void {
+    for (0..rec_height) |j| {
+        for (0..rec_width) |i| {
+            pixels[(screen_width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 0] = b;
+            pixels[(screen_width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 1] = g;
+            pixels[(screen_width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 2] = r;
+        }
+    }
+}
