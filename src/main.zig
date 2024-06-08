@@ -69,23 +69,6 @@ fn checkPixelFormat(window: *c.struct_SDL_Window) void {
     }
 }
 
-const TiledScreenData = struct {
-    surface_width: u32,
-    surface_height: u32,
-    tile_count_x: u32,
-    tile_count_y: u32,
-
-    const Self = @This();
-
-    fn tile_width(self: Self) u32 {
-        return self.surface_width / self.tile_count_x;
-    }
-
-    fn tile_height(self: Self) u32 {
-        return self.surface_height / self.tile_count_y;
-    }
-};
-
 pub fn main() !void {
     sdlInit();
     const window = createWindow("zig-roguelike", 1920, 1080);
@@ -93,12 +76,12 @@ pub fn main() !void {
     checkPixelFormat(window);
 
     var pixels: [*]u8 = @ptrCast(surface.pixels orelse @panic("Surface has not allocated pixels"));
-    var screen_data = TiledScreenData{
-        .surface_width = @intCast(surface.w),
-        .surface_height = @intCast(surface.h),
-        .tile_count_x = 80,
-        .tile_count_y = 60,
-    };
+    var surface_width: u32 = @intCast(surface.w);
+    var surface_height: u32 = @intCast(surface.h);
+    const tile_count_x: u32 = 80;
+    const tile_count_y: u32 = 60;
+    var tile_width: u32 = surface_width / tile_count_x;
+    var tile_height: u32 = surface_height / tile_count_y;
 
     var running = true;
     var event: c.SDL_Event = undefined;
@@ -113,25 +96,25 @@ pub fn main() !void {
             clear_screen_colour_byte,
             0,
             0,
-            screen_data.surface_width,
-            screen_data.surface_height,
+            surface_width,
+            surface_height,
             4,
-            screen_data.surface_width,
+            surface_width,
         ); // clear
-        for (0..screen_data.tile_count_y) |j| {
-            for (0..screen_data.tile_count_x) |i| {
+        for (0..tile_count_y) |j| {
+            for (0..tile_count_x) |i| {
                 const colour: u8 = if (@mod(i + j, 2) == 0) 255 else 0;
                 drawRectangle(
                     pixels,
                     colour,
                     colour,
                     colour,
-                    @intCast(screen_data.tile_width() * i),
-                    @intCast(screen_data.tile_height() * j),
-                    screen_data.tile_width(),
-                    screen_data.tile_height(),
+                    @intCast(tile_width * i),
+                    @intCast(tile_height * j),
+                    tile_width,
+                    tile_height,
                     4,
-                    screen_data.surface_width,
+                    surface_width,
                 );
             }
         }
@@ -142,10 +125,10 @@ pub fn main() !void {
             255,
             pos_x,
             pos_y,
-            screen_data.tile_width(),
-            screen_data.tile_height(),
+            tile_width,
+            tile_height,
             4,
-            screen_data.surface_width,
+            surface_width,
         ); // player
 
         if (c.SDL_UpdateWindowSurface(window) < 0) {
@@ -159,10 +142,10 @@ pub fn main() !void {
             if (event.type == c.SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     c.SDLK_ESCAPE => running = false,
-                    c.SDLK_UP => pos_y = safeSub(pos_y, screen_data.tile_height(), 0),
-                    c.SDLK_DOWN => pos_y = safeAdd(pos_y + screen_data.tile_height(), screen_data.tile_height(), screen_data.surface_height) - screen_data.tile_height(),
-                    c.SDLK_LEFT => pos_x = safeSub(pos_x, screen_data.tile_width(), 0),
-                    c.SDLK_RIGHT => pos_x = safeAdd(pos_x + screen_data.tile_width(), screen_data.tile_width(), screen_data.surface_width) - screen_data.tile_width(),
+                    c.SDLK_UP => pos_y = safeSub(pos_y, tile_height, 0),
+                    c.SDLK_DOWN => pos_y = safeAdd(pos_y + tile_height, tile_height, surface_height) - tile_height,
+                    c.SDLK_LEFT => pos_x = safeSub(pos_x, tile_width, 0),
+                    c.SDLK_RIGHT => pos_x = safeAdd(pos_x + tile_width, tile_width, surface_width) - tile_width,
                     else => {},
                 }
             }
@@ -173,8 +156,10 @@ pub fn main() !void {
                     @panic("I've assumed RGB888 format so far, so expect wonky results if you push on!\n");
                 }
                 pixels = @ptrCast(surface.pixels orelse @panic("Surface has not allocated pixels"));
-                screen_data.surface_height = @intCast(surface.h);
-                screen_data.surface_width = @intCast(surface.w);
+                surface_height = @intCast(surface.h);
+                surface_width = @intCast(surface.w);
+                tile_width = surface_width / tile_count_x;
+                tile_height = surface_height / tile_count_y;
             }
         }
     }
