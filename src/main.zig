@@ -3,6 +3,13 @@ const c = @cImport({
     @cInclude("SDL2/SDL.h");
 });
 
+const Rectangle = struct {
+    pos_x: u32,
+    pos_y: u32,
+    width: u32,
+    height: u32,
+};
+
 const clear_screen_colour_byte: u8 = 0;
 
 pub fn sdlPanic() noreturn {
@@ -28,18 +35,16 @@ pub fn drawRectangle(
     r: u8,
     g: u8,
     b: u8,
-    pos_x: u32,
-    pos_y: u32,
-    rec_width: u32,
-    rec_height: u32,
+    rect: Rectangle,
     bytes_per_pixel: u32,
     pixels_per_row: u32,
 ) void {
-    for (0..rec_height) |j| {
-        for (0..rec_width) |i| {
-            pixels[(pixels_per_row * bytes_per_pixel * (j + pos_y)) + (bytes_per_pixel * (i + pos_x)) + 0] = b;
-            pixels[(pixels_per_row * bytes_per_pixel * (j + pos_y)) + (bytes_per_pixel * (i + pos_x)) + 1] = g;
-            pixels[(pixels_per_row * bytes_per_pixel * (j + pos_y)) + (bytes_per_pixel * (i + pos_x)) + 2] = r;
+    for (0..rect.height) |j| {
+        for (0..rect.width) |i| {
+            const idx = (pixels_per_row * bytes_per_pixel * (j + rect.pos_y)) + (bytes_per_pixel * (i + rect.pos_x));
+            pixels[idx + 0] = b;
+            pixels[idx + 1] = g;
+            pixels[idx + 2] = r;
         }
     }
 }
@@ -94,10 +99,12 @@ pub fn main() !void {
             clear_screen_colour_byte,
             clear_screen_colour_byte,
             clear_screen_colour_byte,
-            0,
-            0,
-            surface_width,
-            surface_height,
+            .{
+                .pos_x = 0,
+                .pos_y = 0,
+                .width = surface_width,
+                .height = surface_height,
+            },
             4,
             surface_width,
         ); // clear
@@ -109,10 +116,12 @@ pub fn main() !void {
                     colour,
                     colour,
                     colour,
-                    @intCast(tile_width * i),
-                    @intCast(tile_height * j),
-                    tile_width,
-                    tile_height,
+                    .{
+                        .pos_x = @intCast(tile_width * i),
+                        .pos_y = @intCast(tile_height * j),
+                        .width = tile_width,
+                        .height = tile_height,
+                    },
                     4,
                     surface_width,
                 );
@@ -123,10 +132,12 @@ pub fn main() !void {
             255,
             0,
             255,
-            pos_x,
-            pos_y,
-            tile_width,
-            tile_height,
+            .{
+                .pos_x = pos_x,
+                .pos_y = pos_y,
+                .width = tile_width,
+                .height = tile_height,
+            },
             4,
             surface_width,
         ); // player
