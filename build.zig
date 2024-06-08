@@ -4,14 +4,6 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const lib = b.addStaticLibrary(.{
-        .name = "zig-roguelike",
-        .root_source_file = b.path("src/lib.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    b.installArtifact(lib);
-
     const exe = b.addExecutable(.{
         .name = "zig-roguelike",
         .root_source_file = b.path("src/main.zig"),
