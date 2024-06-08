@@ -8,13 +8,13 @@ pub fn sdlPanic() noreturn {
     std.debug.panic("{s}", .{sdl_error_string});
 }
 
-pub fn safeAdd(x: usize, d: usize, max: usize) usize {
+pub fn safeAdd(x: u32, d: u32, max: u32) u32 {
     const result = x + d;
     if (result >= max) return max;
     return result;
 }
 
-pub fn safeSub(x: usize, d: usize, min: usize) usize {
+pub fn safeSub(x: u32, d: u32, min: u32) u32 {
     if (d >= x) return 0;
     const result = x - d;
     if (result <= min) return min;
@@ -26,17 +26,18 @@ pub fn drawRectangle(
     r: u8,
     g: u8,
     b: u8,
-    pos_x: usize,
-    pos_y: usize,
-    rec_width: usize,
-    rec_height: usize,
-    screen_width: usize,
+    pos_x: u32,
+    pos_y: u32,
+    rec_width: u32,
+    rec_height: u32,
+    bytes_per_pixel: u32,
+    pixels_per_row: u32,
 ) void {
     for (0..rec_height) |j| {
         for (0..rec_width) |i| {
-            pixels[(screen_width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 0] = b;
-            pixels[(screen_width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 1] = g;
-            pixels[(screen_width * 4 * (j + pos_y)) + (4 * (i + pos_x)) + 2] = r;
+            pixels[(pixels_per_row * bytes_per_pixel * (j + pos_y)) + (bytes_per_pixel * (i + pos_x)) + 0] = b;
+            pixels[(pixels_per_row * bytes_per_pixel * (j + pos_y)) + (bytes_per_pixel * (i + pos_x)) + 1] = g;
+            pixels[(pixels_per_row * bytes_per_pixel * (j + pos_y)) + (bytes_per_pixel * (i + pos_x)) + 2] = r;
         }
     }
 }

@@ -13,35 +13,6 @@ const wall_colour_byte: u8 = 240;
 const floor_colour_byte: u8 = 60;
 const border_colour_byte: u8 = 0;
 
-const tilemap_width: comptime_int = 4;
-const tilemap_height: comptime_int = 4;
-const background_tilemap = [tilemap_height][tilemap_width]background_tiles{
-    [tilemap_width]background_tiles{
-        background_tiles.WALL,
-        background_tiles.WALL,
-        background_tiles.WALL,
-        background_tiles.WALL,
-    },
-    [tilemap_width]background_tiles{
-        background_tiles.WALL,
-        background_tiles.FLOOR,
-        background_tiles.FLOOR,
-        background_tiles.FLOOR,
-    },
-    [tilemap_width]background_tiles{
-        background_tiles.WALL,
-        background_tiles.FLOOR,
-        background_tiles.WALL,
-        background_tiles.FLOOR,
-    },
-    [tilemap_width]background_tiles{
-        background_tiles.WALL,
-        background_tiles.WALL,
-        background_tiles.WALL,
-        background_tiles.WALL,
-    },
-};
-
 fn sdlInit() void {
     const sdl_init = c.SDL_Init(c.SDL_INIT_VIDEO | c.SDL_INIT_TIMER | c.SDL_INIT_EVENTS);
     if (sdl_init < 0) {
@@ -67,6 +38,23 @@ fn checkPixelFormat(window: *c.struct_SDL_Window) void {
     }
 }
 
+const TiledScreenData = struct {
+    surface_width: u32,
+    surface_height: u32,
+    tile_count_x: u32,
+    tile_count_y: u32,
+
+    const Self = @This();
+
+    fn tile_width(self: Self) u32 {
+        return self.surface_width / self.tile_count_x;
+    }
+
+    fn tile_height(self: Self) u32 {
+        return self.surface_height / self.tile_count_y;
+    }
+};
+
 pub fn main() !void {
     sdlInit();
     const window = createWindow("zig-roguelike", 800, 600);
@@ -74,20 +62,17 @@ pub fn main() !void {
     checkPixelFormat(window);
 
     var pixels: [*]u8 = @ptrCast(surface.pixels orelse @panic("Surface has not allocated pixels"));
-    var width: usize = @intCast(surface.w);
-    var height: usize = @intCast(surface.h);
-    var tile_width: usize = width / tilemap_width;
-    var tile_height: usize = height / tilemap_height;
-    std.debug.print("screen_width: {}\nscreen_height: {}\ntile_width: {}\ntile_height: {}\n\n", .{ width, height, tile_width, tile_height });
+    var screen_data = TiledScreenData{
+        .surface_width = @intCast(surface.w),
+        .surface_height = @intCast(surface.h),
+        .tile_count_x = 80,
+        .tile_count_y = 60,
+    };
 
-    var run_count: usize = 0;
     var running = true;
     var event: c.SDL_Event = undefined;
-
-    var pos_x: usize = 0;
-    var pos_y: usize = 0;
-    var speed_x: usize = tilemap_width;
-    var speed_y: usize = tilemap_height;
+    var pos_x: u32 = 0;
+    var pos_y: u32 = 0;
 
     while (running) {
         lib.drawRectangle(
@@ -97,26 +82,25 @@ pub fn main() !void {
             @truncate(border_colour_byte),
             0,
             0,
-            width,
-            height,
-            width,
+            screen_data.surface_width,
+            screen_data.surface_height,
+            4,
+            screen_data.surface_width,
         ); // clear
-        inline for (0..tilemap_height) |j| {
-            inline for (0..tilemap_width) |i| {
-                const colour = switch (background_tilemap[j][i]) {
-                    .FLOOR => floor_colour_byte,
-                    .WALL => wall_colour_byte,
-                };
+        for (0..screen_data.tile_count_y) |j| {
+            for (0..screen_data.tile_count_x) |i| {
+                const colour: u32 = if (@mod(i + j, 2) == 0) 255 else 0;
                 lib.drawRectangle(
                     pixels,
                     @truncate(colour),
                     @truncate(colour),
                     @truncate(colour),
-                    tile_width * i,
-                    tile_height * j,
-                    tile_width,
-                    tile_height,
-                    width,
+                    @intCast(screen_data.tile_width() * i),
+                    @intCast(screen_data.tile_height() * j),
+                    screen_data.tile_width(),
+                    screen_data.tile_height(),
+                    4,
+                    screen_data.surface_width,
                 );
             }
         }
@@ -127,9 +111,10 @@ pub fn main() !void {
             255,
             pos_x,
             pos_y,
-            tile_width,
-            tile_height,
-            width,
+            screen_data.tile_width(),
+            screen_data.tile_height(),
+            4,
+            screen_data.surface_width,
         ); // player
 
         const update = c.SDL_UpdateWindowSurface(window);
@@ -144,10 +129,10 @@ pub fn main() !void {
             if (event.type == c.SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     c.SDLK_ESCAPE => running = false,
-                    c.SDLK_UP => pos_y = lib.safeSub(pos_y, speed_y, 0),
-                    c.SDLK_DOWN => pos_y = lib.safeAdd(pos_y + tile_height, speed_y, height) - tile_height,
-                    c.SDLK_LEFT => pos_x = lib.safeSub(pos_x, speed_x, 0),
-                    c.SDLK_RIGHT => pos_x = lib.safeAdd(pos_x + tile_width, speed_x, width) - tile_width,
+                    c.SDLK_UP => pos_y = lib.safeSub(pos_y, screen_data.tile_height(), 0),
+                    c.SDLK_DOWN => pos_y = lib.safeAdd(pos_y + screen_data.tile_height(), screen_data.tile_height(), screen_data.surface_height) - screen_data.tile_height(),
+                    c.SDLK_LEFT => pos_x = lib.safeSub(pos_x, screen_data.tile_width(), 0),
+                    c.SDLK_RIGHT => pos_x = lib.safeAdd(pos_x + screen_data.tile_width(), screen_data.tile_width(), screen_data.surface_width) - screen_data.tile_width(),
                     else => {},
                 }
             }
@@ -158,16 +143,9 @@ pub fn main() !void {
                     @panic("I've assumed RGB888 format so far, so expect wonky results if you push on!\n");
                 }
                 pixels = @ptrCast(surface.pixels orelse @panic("Surface has not allocated pixels"));
-                width = @intCast(surface.w);
-                height = @intCast(surface.h);
-                tile_width = width / tilemap_width;
-                tile_height = height / tilemap_height;
-                speed_x = tile_width;
-                speed_y = tile_height;
-                std.debug.print("screen_width: {}\nscreen_height: {}\ntile_width: {}\ntile_height: {}\n\n", .{ width, height, tile_width, tile_height });
+                screen_data.surface_height = @intCast(surface.h);
+                screen_data.surface_width = @intCast(surface.w);
             }
         }
-
-        run_count += 1;
     }
 }
