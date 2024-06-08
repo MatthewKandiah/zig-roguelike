@@ -42,27 +42,36 @@ const background_tilemap = [tilemap_height][tilemap_width]background_tiles{
     },
 };
 
-pub fn main() !void {
+fn sdlInit() void {
     const sdl_init = c.SDL_Init(c.SDL_INIT_VIDEO | c.SDL_INIT_TIMER | c.SDL_INIT_EVENTS);
     if (sdl_init < 0) {
         lib.sdlPanic();
     }
+}
 
-    const window = c.SDL_CreateWindow(
-        "zig-roguelike",
+fn createWindow(title: []const u8, width: u32, height: u32) *c.struct_SDL_Window {
+    return c.SDL_CreateWindow(
+        @ptrCast(title),
         c.SDL_WINDOWPOS_UNDEFINED,
         c.SDL_WINDOWPOS_UNDEFINED,
-        800,
-        600,
+        @intCast(width),
+        @intCast(height),
         c.SDL_WINDOW_RESIZABLE,
     ) orelse lib.sdlPanic();
+}
 
-    var surface: *c.SDL_Surface = c.SDL_GetWindowSurface(window) orelse lib.sdlPanic();
-
+fn checkPixelFormat(window: *c.struct_SDL_Window) void {
     const format = c.SDL_GetWindowPixelFormat(window);
     if (format != c.SDL_PIXELFORMAT_RGB888) {
         @panic("I've assumed RGB888 format so far, so expect wonky results if you push on!\n");
     }
+}
+
+pub fn main() !void {
+    sdlInit();
+    const window = createWindow("zig-roguelike", 800, 600);
+    var surface: *c.struct_SDL_Surface = c.SDL_GetWindowSurface(window) orelse lib.sdlPanic();
+    checkPixelFormat(window);
 
     var pixels: [*]u8 = @ptrCast(surface.pixels orelse @panic("Surface has not allocated pixels"));
     var width: usize = @intCast(surface.w);
