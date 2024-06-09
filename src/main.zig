@@ -181,7 +181,8 @@ pub fn main() !void {
                 const g = charmap.data[charmap_data_idx + 1];
                 const b = charmap.data[charmap_data_idx + 2];
                 const char_colour = Colour{ .r = 255, .g = 255, .b = 0 };
-                const colour = if (r != 0 and g != 0 and b != 0) char_colour else Colour.grey(0);
+                const bg_colour = Colour{ .r = 0, .g = 100, .b = 100 };
+                const colour = if (r != 0 and g != 0 and b != 0) char_colour else bg_colour;
                 const rect = Rectangle{
                     .pos_x = @intCast(i * scale_factor + 1000),
                     .pos_y = @intCast(j * scale_factor + 500),
