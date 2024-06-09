@@ -140,16 +140,6 @@ fn checkPixelFormat(window: *c.struct_SDL_Window) void {
 pub fn main() !void {
     const charmap = loadCharmap();
     const scale_factor = 3;
-    std.debug.print("channels: {}\n", .{charmap.nrChannels});
-    // for (0..128) |debug_idx| {
-    //     std.debug.print("new pixel\n", .{});
-    //     std.debug.print("\t0. {}\n\t1. {}\n\t2. {}\n\t3. {}\n\n", .{
-    //         charmap.data[debug_idx + 0],
-    //         charmap.data[debug_idx + 1],
-    //         charmap.data[debug_idx + 2],
-    //         charmap.data[debug_idx + 3],
-    //     });
-    // }
     sdlInit();
     const window = createWindow("zig-roguelike", 1920, 1080);
     checkPixelFormat(window);
@@ -175,6 +165,26 @@ pub fn main() !void {
                 const rect = Rectangle{
                     .pos_x = @intCast(i * scale_factor),
                     .pos_y = @intCast(j * scale_factor),
+                    .width = scale_factor,
+                    .height = scale_factor,
+                };
+                rect.draw(surface.pixels, colour, 4, surface.width);
+            }
+        }
+
+        for (0..9) |j| {
+            for (0..7) |i| {
+                const offset_x = 7 * 14;
+                const offset_y = 9 * 1;
+                const charmap_data_idx = (charmap.width * 3 * (j + offset_y)) + (3 * (i + offset_x));
+                const r = charmap.data[charmap_data_idx + 0];
+                const g = charmap.data[charmap_data_idx + 1];
+                const b = charmap.data[charmap_data_idx + 2];
+                const char_colour = Colour{ .r = 255, .g = 255, .b = 0 };
+                const colour = if (r != 0 and g != 0 and b != 0) char_colour else Colour.grey(0);
+                const rect = Rectangle{
+                    .pos_x = @intCast(i * scale_factor + 1000),
+                    .pos_y = @intCast(j * scale_factor + 500),
                     .width = scale_factor,
                     .height = scale_factor,
                 };
