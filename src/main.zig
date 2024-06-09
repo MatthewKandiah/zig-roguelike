@@ -10,31 +10,41 @@ const Rectangle = struct {
     height: u32,
 };
 
+const Colour = struct {
+    r: u8,
+    g: u8,
+    b: u8,
+
+    const Self = @This();
+
+    fn grey(value: u8) Self {
+        return Self{ .r = value, .g = value, .b = value };
+    }
+};
+
 const clear_screen_colour_byte: u8 = 0;
 
-pub fn sdlPanic() noreturn {
+fn sdlPanic() noreturn {
     const sdl_error_string = c.SDL_GetError();
     std.debug.panic("{s}", .{sdl_error_string});
 }
 
-pub fn safeAdd(x: u32, d: u32, max: u32) u32 {
+fn safeAdd(x: u32, d: u32, max: u32) u32 {
     const result = x + d;
     if (result >= max) return max;
     return result;
 }
 
-pub fn safeSub(x: u32, d: u32, min: u32) u32 {
+fn safeSub(x: u32, d: u32, min: u32) u32 {
     if (d >= x) return 0;
     const result = x - d;
     if (result <= min) return min;
     return result;
 }
 
-pub fn drawRectangle(
+fn drawRectangle(
     pixels: [*]u8,
-    r: u8,
-    g: u8,
-    b: u8,
+    colour: Colour,
     rect: Rectangle,
     bytes_per_pixel: u32,
     pixels_per_row: u32,
@@ -42,9 +52,9 @@ pub fn drawRectangle(
     for (0..rect.height) |j| {
         for (0..rect.width) |i| {
             const idx = (pixels_per_row * bytes_per_pixel * (j + rect.pos_y)) + (bytes_per_pixel * (i + rect.pos_x));
-            pixels[idx + 0] = b;
-            pixels[idx + 1] = g;
-            pixels[idx + 2] = r;
+            pixels[idx + 0] = colour.b;
+            pixels[idx + 1] = colour.g;
+            pixels[idx + 2] = colour.r;
         }
     }
 }
@@ -96,9 +106,7 @@ pub fn main() !void {
     while (running) {
         drawRectangle(
             pixels,
-            clear_screen_colour_byte,
-            clear_screen_colour_byte,
-            clear_screen_colour_byte,
+            Colour.grey(clear_screen_colour_byte),
             .{
                 .pos_x = 0,
                 .pos_y = 0,
@@ -110,12 +118,10 @@ pub fn main() !void {
         ); // clear
         for (0..tile_count_y) |j| {
             for (0..tile_count_x) |i| {
-                const colour: u8 = if (@mod(i + j, 2) == 0) 255 else 0;
+                const colour_value: u8 = if (@mod(i + j, 2) == 0) 255 else 0;
                 drawRectangle(
                     pixels,
-                    colour,
-                    colour,
-                    colour,
+                    Colour.grey(colour_value),
                     .{
                         .pos_x = @intCast(tile_width * i),
                         .pos_y = @intCast(tile_height * j),
@@ -129,9 +135,11 @@ pub fn main() !void {
         }
         drawRectangle(
             pixels,
-            255,
-            0,
-            255,
+            .{
+                .r = 255,
+                .g = 0,
+                .b = 255,
+            },
             .{
                 .pos_x = pos_x,
                 .pos_y = pos_y,
