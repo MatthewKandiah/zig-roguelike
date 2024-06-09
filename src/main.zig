@@ -8,6 +8,25 @@ const Rectangle = struct {
     pos_y: u32,
     width: u32,
     height: u32,
+
+    const Self = @This();
+
+    fn draw(
+        self: Self,
+        pixels: [*]u8,
+        colour: Colour,
+        bytes_per_pixel: u32,
+        pixels_per_row: u32,
+    ) void {
+        for (0..self.height) |j| {
+            for (0..self.width) |i| {
+                const idx = (pixels_per_row * bytes_per_pixel * (j + self.pos_y)) + (bytes_per_pixel * (i + self.pos_x));
+                pixels[idx + 0] = colour.b;
+                pixels[idx + 1] = colour.g;
+                pixels[idx + 2] = colour.r;
+            }
+        }
+    }
 };
 
 const Colour = struct {
@@ -40,23 +59,6 @@ fn safeSub(x: u32, d: u32, min: u32) u32 {
     const result = x - d;
     if (result <= min) return min;
     return result;
-}
-
-fn drawRectangle(
-    pixels: [*]u8,
-    colour: Colour,
-    rect: Rectangle,
-    bytes_per_pixel: u32,
-    pixels_per_row: u32,
-) void {
-    for (0..rect.height) |j| {
-        for (0..rect.width) |i| {
-            const idx = (pixels_per_row * bytes_per_pixel * (j + rect.pos_y)) + (bytes_per_pixel * (i + rect.pos_x));
-            pixels[idx + 0] = colour.b;
-            pixels[idx + 1] = colour.g;
-            pixels[idx + 2] = colour.r;
-        }
-    }
 }
 
 fn sdlInit() void {
@@ -104,47 +106,42 @@ pub fn main() !void {
     var pos_y: u32 = 0;
 
     while (running) {
-        drawRectangle(
+        const whole_screen_rect = Rectangle{ .pos_x = 0, .pos_y = 0, .width = surface_width, .height = surface_height };
+        whole_screen_rect.draw(
             pixels,
             Colour.grey(clear_screen_colour_byte),
-            .{
-                .pos_x = 0,
-                .pos_y = 0,
-                .width = surface_width,
-                .height = surface_height,
-            },
             4,
             surface_width,
         ); // clear
         for (0..tile_count_y) |j| {
             for (0..tile_count_x) |i| {
                 const colour_value: u8 = if (@mod(i + j, 2) == 0) 255 else 0;
-                drawRectangle(
+                const background_tile_rect = Rectangle{
+                    .pos_x = @intCast(tile_width * i),
+                    .pos_y = @intCast(tile_height * j),
+                    .width = tile_width,
+                    .height = tile_height,
+                };
+                background_tile_rect.draw(
                     pixels,
                     Colour.grey(colour_value),
-                    .{
-                        .pos_x = @intCast(tile_width * i),
-                        .pos_y = @intCast(tile_height * j),
-                        .width = tile_width,
-                        .height = tile_height,
-                    },
                     4,
                     surface_width,
                 );
             }
         }
-        drawRectangle(
+        const player_rect = Rectangle{
+            .pos_x = pos_x,
+            .pos_y = pos_y,
+            .width = tile_width,
+            .height = tile_height,
+        };
+        player_rect.draw(
             pixels,
             .{
                 .r = 255,
                 .g = 0,
                 .b = 255,
-            },
-            .{
-                .pos_x = pos_x,
-                .pos_y = pos_y,
-                .width = tile_width,
-                .height = tile_height,
             },
             4,
             surface_width,
