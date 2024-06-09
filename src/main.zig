@@ -2,6 +2,44 @@ const std = @import("std");
 const c = @cImport({
     @cInclude("SDL2/SDL.h");
 });
+const stb = @cImport({
+    @cInclude("stb_image.h");
+});
+
+const LoadImageResult = struct {
+    data: [*]u8,
+    width: u32,
+    height: u32,
+    nrChannels: u32,
+};
+
+// character bitmap is 18 x 6 characters
+// pixel dimensions of character bitmap
+// TODO - not sure how much padding there is between characters
+const char_width = 5;
+const char_height = 7;
+
+fn loadCharmap() LoadImageResult {
+    // stb.stbi_set_flip_vertically_on_load(1);
+    var width: c_int = undefined;
+    var height: c_int = undefined;
+    var nrChannels: c_int = undefined;
+    var data: [*]u8 = undefined;
+    data = stb.stbi_load("src/assets/charmap-oldschool-white.png", &width, &height, &nrChannels, 0);
+    return .{
+        .data = data,
+        .width = @intCast(width),
+        .height = @intCast(height),
+        .nrChannels = @intCast(nrChannels),
+    };
+}
+
+const Zone = struct {
+    pos_x: u32,
+    pos_y: u32,
+    width: u32,
+    height: u32,
+};
 
 const Surface = struct {
     pixels: [*]u8,
@@ -67,7 +105,7 @@ const Colour = struct {
     }
 };
 
-const clear_screen_colour_byte: u8 = 0;
+const clear_screen_colour_byte: u8 = 122;
 
 fn sdlPanic() noreturn {
     const sdl_error_string = c.SDL_GetError();
@@ -100,6 +138,18 @@ fn checkPixelFormat(window: *c.struct_SDL_Window) void {
 }
 
 pub fn main() !void {
+    const charmap = loadCharmap();
+    const scale_factor = 3;
+    std.debug.print("channels: {}\n", .{charmap.nrChannels});
+    // for (0..128) |debug_idx| {
+    //     std.debug.print("new pixel\n", .{});
+    //     std.debug.print("\t0. {}\n\t1. {}\n\t2. {}\n\t3. {}\n\n", .{
+    //         charmap.data[debug_idx + 0],
+    //         charmap.data[debug_idx + 1],
+    //         charmap.data[debug_idx + 2],
+    //         charmap.data[debug_idx + 3],
+    //     });
+    // }
     sdlInit();
     const window = createWindow("zig-roguelike", 1920, 1080);
     checkPixelFormat(window);
@@ -114,6 +164,23 @@ pub fn main() !void {
             4,
             surface.width,
         ); // clear
+
+        for (0..charmap.height) |j| {
+            for (0..charmap.width) |i| {
+                const charmap_data_idx = (charmap.width * 3 * j) + (3 * i);
+                const r = charmap.data[charmap_data_idx + 0];
+                const g = charmap.data[charmap_data_idx + 1];
+                const b = charmap.data[charmap_data_idx + 2];
+                const colour = Colour{ .r = r, .g = g, .b = b };
+                const rect = Rectangle{
+                    .pos_x = @intCast(i * scale_factor),
+                    .pos_y = @intCast(j * scale_factor),
+                    .width = scale_factor,
+                    .height = scale_factor,
+                };
+                rect.draw(surface.pixels, colour, 4, surface.width);
+            }
+        }
 
         if (c.SDL_UpdateWindowSurface(window) < 0) {
             sdlPanic();

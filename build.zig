@@ -10,6 +10,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    exe.addIncludePath(.{ .path = "deps/include" });
+    exe.addCSourceFile(.{ .file = .{ .path = "deps/src/stb_image_impl.c" }, .flags = &[_][]u8{} });
     // TODO - consider static linking SDL2
     exe.linkSystemLibrary("SDL2");
     exe.linkLibC();
