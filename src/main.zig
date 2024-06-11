@@ -32,6 +32,13 @@ const CharMap = struct {
             .char_pixel_height = char_pixel_height,
         };
     }
+
+    fn pixelPositionFromCharIndices(self: *const Self, charIndices: Position) Position {
+        return .{
+            .x = charIndices.x * self.char_pixel_width,
+            .y = charIndices.y * self.char_pixel_height,
+        };
+    }
 };
 
 const Zone = struct {
@@ -137,6 +144,108 @@ fn checkPixelFormat(window: *c.struct_SDL_Window) void {
     }
 }
 
+const Position = struct { x: u32, y: u32 };
+
+fn getCharIndices(char: u8) Position {
+    return switch (char) {
+        '!' => .{ .x = 1, .y = 0 },
+        '"' => .{ .x = 2, .y = 0 },
+        '#' => .{ .x = 3, .y = 0 },
+        '$' => .{ .x = 4, .y = 0 },
+        '%' => .{ .x = 5, .y = 0 },
+        '&' => .{ .x = 6, .y = 0 },
+        '\'' => .{ .x = 7, .y = 0 },
+        '(' => .{ .x = 8, .y = 0 },
+        ')' => .{ .x = 9, .y = 0 },
+        '*' => .{ .x = 10, .y = 0 },
+        '+' => .{ .x = 11, .y = 0 },
+        ',' => .{ .x = 12, .y = 0 },
+        '-' => .{ .x = 13, .y = 0 },
+        '.' => .{ .x = 14, .y = 0 },
+        '/' => .{ .x = 15, .y = 0 },
+        '0' => .{ .x = 16, .y = 0 },
+        '1' => .{ .x = 17, .y = 0 },
+        '2' => .{ .x = 0, .y = 1 },
+        '3' => .{ .x = 1, .y = 1 },
+        '4' => .{ .x = 2, .y = 1 },
+        '5' => .{ .x = 3, .y = 1 },
+        '6' => .{ .x = 4, .y = 1 },
+        '7' => .{ .x = 5, .y = 1 },
+        '8' => .{ .x = 6, .y = 1 },
+        '9' => .{ .x = 7, .y = 1 },
+        ':' => .{ .x = 8, .y = 1 },
+        ';' => .{ .x = 9, .y = 1 },
+        '<' => .{ .x = 10, .y = 1 },
+        '=' => .{ .x = 11, .y = 1 },
+        '>' => .{ .x = 12, .y = 1 },
+        '?' => .{ .x = 13, .y = 1 },
+        '@' => .{ .x = 14, .y = 1 },
+        'A' => .{ .x = 15, .y = 1 },
+        'B' => .{ .x = 16, .y = 1 },
+        'C' => .{ .x = 17, .y = 1 },
+        'D' => .{ .x = 0, .y = 2 },
+        'E' => .{ .x = 1, .y = 2 },
+        'F' => .{ .x = 2, .y = 2 },
+        'G' => .{ .x = 3, .y = 2 },
+        'H' => .{ .x = 4, .y = 2 },
+        'I' => .{ .x = 5, .y = 2 },
+        'J' => .{ .x = 6, .y = 2 },
+        'K' => .{ .x = 7, .y = 2 },
+        'L' => .{ .x = 8, .y = 2 },
+        'M' => .{ .x = 9, .y = 2 },
+        'N' => .{ .x = 10, .y = 2 },
+        'O' => .{ .x = 11, .y = 2 },
+        'P' => .{ .x = 12, .y = 2 },
+        'Q' => .{ .x = 13, .y = 2 },
+        'R' => .{ .x = 14, .y = 2 },
+        'S' => .{ .x = 15, .y = 2 },
+        'T' => .{ .x = 16, .y = 2 },
+        'U' => .{ .x = 17, .y = 2 },
+        'V' => .{ .x = 0, .y = 3 },
+        'W' => .{ .x = 1, .y = 3 },
+        'X' => .{ .x = 2, .y = 3 },
+        'Y' => .{ .x = 3, .y = 3 },
+        'Z' => .{ .x = 4, .y = 3 },
+        '[' => .{ .x = 5, .y = 3 },
+        '\\' => .{ .x = 6, .y = 3 },
+        ']' => .{ .x = 7, .y = 3 },
+        '^' => .{ .x = 8, .y = 3 },
+        '_' => .{ .x = 9, .y = 3 },
+        '`' => .{ .x = 10, .y = 3 },
+        'a' => .{ .x = 11, .y = 3 },
+        'b' => .{ .x = 12, .y = 3 },
+        'c' => .{ .x = 13, .y = 3 },
+        'd' => .{ .x = 14, .y = 3 },
+        'e' => .{ .x = 15, .y = 3 },
+        'f' => .{ .x = 16, .y = 3 },
+        'g' => .{ .x = 17, .y = 3 },
+        'h' => .{ .x = 0, .y = 3 },
+        'i' => .{ .x = 1, .y = 3 },
+        'j' => .{ .x = 2, .y = 3 },
+        'k' => .{ .x = 3, .y = 3 },
+        'l' => .{ .x = 4, .y = 3 },
+        'm' => .{ .x = 5, .y = 3 },
+        'n' => .{ .x = 6, .y = 3 },
+        'o' => .{ .x = 7, .y = 3 },
+        'p' => .{ .x = 8, .y = 3 },
+        'q' => .{ .x = 9, .y = 3 },
+        'r' => .{ .x = 10, .y = 3 },
+        's' => .{ .x = 11, .y = 3 },
+        't' => .{ .x = 12, .y = 3 },
+        'u' => .{ .x = 13, .y = 3 },
+        'v' => .{ .x = 14, .y = 3 },
+        'w' => .{ .x = 15, .y = 3 },
+        'x' => .{ .x = 16, .y = 3 },
+        'y' => .{ .x = 17, .y = 3 },
+        'z' => .{ .x = 0, .y = 4 },
+        '{' => .{ .x = 1, .y = 4 },
+        '|' => .{ .x = 2, .y = 4 },
+        '}' => .{ .x = 3, .y = 4 },
+        '~' => .{ .x = 4, .y = 4 },
+        else => std.debug.panic("Illegal character {c} for current font", .{char}),
+    };
+}
+
 pub fn main() !void {
     sdlInit();
     const window = createWindow("zig-roguelike", 1920, 1080);
@@ -176,9 +285,8 @@ pub fn main() !void {
 
         for (0..charmap.char_pixel_height) |j| {
             for (0..charmap.char_pixel_width) |i| {
-                const offset_x = 14 * charmap.char_pixel_width;
-                const offset_y = 1 * charmap.char_pixel_height;
-                const charmap_data_idx = (charmap.total_width * charmap.bytes_per_pixel * (j + offset_y)) + (charmap.bytes_per_pixel * (i + offset_x));
+                const char_position = charmap.pixelPositionFromCharIndices(getCharIndices('a'));
+                const charmap_data_idx = (charmap.total_width * charmap.bytes_per_pixel * (j + char_position.y)) + (charmap.bytes_per_pixel * (i + char_position.x));
                 const r = charmap.data[charmap_data_idx + 0];
                 const g = charmap.data[charmap_data_idx + 1];
                 const b = charmap.data[charmap_data_idx + 2];
