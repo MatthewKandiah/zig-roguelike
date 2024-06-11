@@ -6,33 +6,33 @@ const stb = @cImport({
     @cInclude("stb_image.h");
 });
 
-const LoadImageResult = struct {
+const CharMap = struct {
     data: [*]u8,
-    width: u32,
-    height: u32,
-    nrChannels: u32,
+    total_width: u32,
+    total_height: u32,
+    bytes_per_pixel: u32,
+    char_pixel_width: u32,
+    char_pixel_height: u32,
+
+    const Self = @This();
+
+    // TODO - our font asset is tiny, could its data be baked in at compile time?
+    fn load(path: []const u8, char_pixel_width: u32, char_pixel_height: u32) Self {
+        var width: c_int = undefined;
+        var height: c_int = undefined;
+        var nrChannels: c_int = undefined;
+        var data: [*]u8 = undefined;
+        data = stb.stbi_load(@ptrCast(path), &width, &height, &nrChannels, 0);
+        return .{
+            .data = data,
+            .total_width = @intCast(width),
+            .total_height = @intCast(height),
+            .bytes_per_pixel = @intCast(nrChannels),
+            .char_pixel_width = char_pixel_width,
+            .char_pixel_height = char_pixel_height,
+        };
+    }
 };
-
-// character bitmap is 18 x 6 characters
-// pixel dimensions of character bitmap
-// TODO - not sure how much padding there is between characters
-const char_width = 5;
-const char_height = 7;
-
-fn loadCharmap() LoadImageResult {
-    // stb.stbi_set_flip_vertically_on_load(1);
-    var width: c_int = undefined;
-    var height: c_int = undefined;
-    var nrChannels: c_int = undefined;
-    var data: [*]u8 = undefined;
-    data = stb.stbi_load("src/assets/charmap-oldschool-white.png", &width, &height, &nrChannels, 0);
-    return .{
-        .data = data,
-        .width = @intCast(width),
-        .height = @intCast(height),
-        .nrChannels = @intCast(nrChannels),
-    };
-}
 
 const Zone = struct {
     pos_x: u32,
@@ -79,9 +79,9 @@ const Rectangle = struct {
         self: Self,
         pixels: [*]u8,
         colour: Colour,
-        bytes_per_pixel: u32,
         pixels_per_row: u32,
     ) void {
+        const bytes_per_pixel = 4;
         for (0..self.height) |j| {
             for (0..self.width) |i| {
                 const idx = (pixels_per_row * bytes_per_pixel * (j + self.pos_y)) + (bytes_per_pixel * (i + self.pos_x));
@@ -138,58 +138,60 @@ fn checkPixelFormat(window: *c.struct_SDL_Window) void {
 }
 
 pub fn main() !void {
-    const charmap = loadCharmap();
-    const scale_factor = 3;
     sdlInit();
     const window = createWindow("zig-roguelike", 1920, 1080);
     checkPixelFormat(window);
     var surface = Surface.from_sdl_window(window);
+
+    const charmap = CharMap.load("src/assets/charmap-oldschool-white.png", 7, 9);
+    const scale_factor = 3;
+
     var running = true;
     var event: c.SDL_Event = undefined;
+
     while (running) {
         const whole_screen_rect = Rectangle{ .pos_x = 0, .pos_y = 0, .width = surface.width, .height = surface.height };
         whole_screen_rect.draw(
             surface.pixels,
             Colour.grey(clear_screen_colour_byte),
-            4,
             surface.width,
-        ); // clear
+        );
 
-        for (0..charmap.height) |j| {
-            for (0..charmap.width) |i| {
-                const charmap_data_idx = (charmap.width * 3 * j) + (3 * i);
+        for (0..charmap.total_height) |j| {
+            for (0..charmap.total_width) |i| {
+                const charmap_data_idx = (charmap.total_width * charmap.bytes_per_pixel * j) + (charmap.bytes_per_pixel * i);
                 const r = charmap.data[charmap_data_idx + 0];
                 const g = charmap.data[charmap_data_idx + 1];
                 const b = charmap.data[charmap_data_idx + 2];
                 const colour = Colour{ .r = r, .g = g, .b = b };
-                const rect = Rectangle{
+                const scaled_pixel = Rectangle{
                     .pos_x = @intCast(i * scale_factor),
                     .pos_y = @intCast(j * scale_factor),
                     .width = scale_factor,
                     .height = scale_factor,
                 };
-                rect.draw(surface.pixels, colour, 4, surface.width);
+                scaled_pixel.draw(surface.pixels, colour, surface.width);
             }
         }
 
-        for (0..9) |j| {
-            for (0..7) |i| {
-                const offset_x = 7 * 14;
-                const offset_y = 9 * 1;
-                const charmap_data_idx = (charmap.width * 3 * (j + offset_y)) + (3 * (i + offset_x));
+        for (0..charmap.char_pixel_height) |j| {
+            for (0..charmap.char_pixel_width) |i| {
+                const offset_x = 14 * charmap.char_pixel_width;
+                const offset_y = 1 * charmap.char_pixel_height;
+                const charmap_data_idx = (charmap.total_width * charmap.bytes_per_pixel * (j + offset_y)) + (charmap.bytes_per_pixel * (i + offset_x));
                 const r = charmap.data[charmap_data_idx + 0];
                 const g = charmap.data[charmap_data_idx + 1];
                 const b = charmap.data[charmap_data_idx + 2];
                 const char_colour = Colour{ .r = 255, .g = 255, .b = 0 };
                 const bg_colour = Colour{ .r = 0, .g = 100, .b = 100 };
                 const colour = if (r != 0 and g != 0 and b != 0) char_colour else bg_colour;
-                const rect = Rectangle{
+                const scaled_pixel = Rectangle{
                     .pos_x = @intCast(i * scale_factor + 1000),
                     .pos_y = @intCast(j * scale_factor + 500),
                     .width = scale_factor,
                     .height = scale_factor,
                 };
-                rect.draw(surface.pixels, colour, 4, surface.width);
+                scaled_pixel.draw(surface.pixels, colour, surface.width);
             }
         }
 
