@@ -36,8 +36,6 @@ const Surface = struct {
     }
 };
 
-const clear_screen_colour_byte: u8 = 122;
-
 fn sdlPanic() noreturn {
     const sdl_error_string = c.SDL_GetError();
     std.debug.panic("{s}", .{sdl_error_string});
@@ -75,50 +73,14 @@ pub fn main() !void {
     var surface = Surface.from_sdl_window(window);
 
     const char_map = CharMap.load("src/assets/charmap-oldschool-white.png", 7, 9);
-    const scale_factor = 3;
+    _ = char_map; // autofix
 
     var running = true;
     var event: c.SDL_Event = undefined;
-
     while (running) {
-        const whole_screen_rect = Rectangle{ .pos_x = 0, .pos_y = 0, .width = surface.width, .height = surface.height };
-        whole_screen_rect.draw(
-            surface.pixels,
-            Colour.grey(clear_screen_colour_byte),
-            surface.width,
-        );
-
-        // draw whole font
-        for (0..char_map.total_height) |j| {
-            for (0..char_map.total_width) |i| {
-                const charmap_data_idx = (char_map.total_width * char_map.bytes_per_pixel * j) + (char_map.bytes_per_pixel * i);
-                const r = char_map.data[charmap_data_idx + 0];
-                const g = char_map.data[charmap_data_idx + 1];
-                const b = char_map.data[charmap_data_idx + 2];
-                const colour = Colour{ .r = r, .g = g, .b = b };
-                const scaled_pixel = Rectangle{
-                    .pos_x = @intCast(i * scale_factor),
-                    .pos_y = @intCast(j * scale_factor),
-                    .width = scale_factor,
-                    .height = scale_factor,
-                };
-                scaled_pixel.draw(surface.pixels, colour, surface.width);
-            }
-        }
-
-        char_map.drawString(
-            "So it turns out this font looks pretty gross[({.,`'\"!?$%#*})]",
-            surface.pixels,
-            .{ .x = 0, .y = 500 },
-            surface.width,
-            .{ .r = 255, .g = 255, .b = 0 },
-            .{ .r = 0, .g = 122, .b = 122 },
-            4,
-        );
-
-        if (c.SDL_UpdateWindowSurface(window) < 0) {
-            sdlPanic();
-        }
+        clearScreen(&surface);
+        // do drawing here
+        updateScreen(window);
 
         while (c.SDL_PollEvent(@ptrCast(&event)) != 0) {
             if (event.type == c.SDL_QUIT) {
@@ -135,5 +97,21 @@ pub fn main() !void {
                 surface.update(window);
             }
         }
+    }
+}
+
+fn clearScreen(surface: *Surface) void {
+    const clear_screen_colour_byte: u8 = 122;
+    const whole_screen_rect = Rectangle{ .pos_x = 0, .pos_y = 0, .width = surface.width, .height = surface.height };
+    whole_screen_rect.draw(
+        surface.pixels,
+        Colour.grey(clear_screen_colour_byte),
+        surface.width,
+    );
+}
+
+fn updateScreen(window: *c.struct_SDL_Window) void {
+    if (c.SDL_UpdateWindowSurface(window) < 0) {
+        sdlPanic();
     }
 }
