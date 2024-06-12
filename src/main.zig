@@ -39,6 +39,34 @@ const CharMap = struct {
             .y = charIndices.y * self.char_pixel_height,
         };
     }
+
+    fn drawChar(
+        self: *const Self,
+        char: u8,
+        pixels: [*]u8,
+        pixels_per_row: u32,
+        fg_colour: Colour,
+        bg_colour: Colour,
+        scale_factor: u32,
+    ) void {
+        for (0..self.char_pixel_height) |j| {
+            for (0..self.char_pixel_width) |i| {
+                const char_position = self.pixelPositionFromCharIndices(getCharIndices(char));
+                const charmap_data_idx = (self.total_width * self.bytes_per_pixel * (j + char_position.y)) + (self.bytes_per_pixel * (i + char_position.x));
+                const r = self.data[charmap_data_idx + 0];
+                const g = self.data[charmap_data_idx + 1];
+                const b = self.data[charmap_data_idx + 2];
+                const colour = if (r != 0 and g != 0 and b != 0) fg_colour else bg_colour;
+                const scaled_pixel = Rectangle{
+                    .pos_x = @intCast(i * scale_factor + 1000),
+                    .pos_y = @intCast(j * scale_factor + 500),
+                    .width = scale_factor,
+                    .height = scale_factor,
+                };
+                scaled_pixel.draw(pixels, colour, pixels_per_row);
+            }
+        }
+    }
 };
 
 const Zone = struct {
@@ -283,25 +311,14 @@ pub fn main() !void {
             }
         }
 
-        for (0..charmap.char_pixel_height) |j| {
-            for (0..charmap.char_pixel_width) |i| {
-                const char_position = charmap.pixelPositionFromCharIndices(getCharIndices('a'));
-                const charmap_data_idx = (charmap.total_width * charmap.bytes_per_pixel * (j + char_position.y)) + (charmap.bytes_per_pixel * (i + char_position.x));
-                const r = charmap.data[charmap_data_idx + 0];
-                const g = charmap.data[charmap_data_idx + 1];
-                const b = charmap.data[charmap_data_idx + 2];
-                const char_colour = Colour{ .r = 255, .g = 255, .b = 0 };
-                const bg_colour = Colour{ .r = 0, .g = 100, .b = 100 };
-                const colour = if (r != 0 and g != 0 and b != 0) char_colour else bg_colour;
-                const scaled_pixel = Rectangle{
-                    .pos_x = @intCast(i * scale_factor + 1000),
-                    .pos_y = @intCast(j * scale_factor + 500),
-                    .width = scale_factor,
-                    .height = scale_factor,
-                };
-                scaled_pixel.draw(surface.pixels, colour, surface.width);
-            }
-        }
+        charmap.drawChar(
+            'a',
+            surface.pixels,
+            surface.width,
+            .{ .r = 255, .g = 255, .b = 0 },
+            .{ .r = 0, .g = 122, .b = 122 },
+            3,
+        );
 
         if (c.SDL_UpdateWindowSurface(window) < 0) {
             sdlPanic();
