@@ -66,20 +66,50 @@ fn checkPixelFormat(window: *c.struct_SDL_Window) void {
     }
 }
 
+const dungeon_width = 20;
+const dungeon_height = 10;
+const dungeon_tile = enum {
+    WALL,
+    FLOOR,
+};
+
 pub fn main() !void {
     sdlInit();
     const window = createWindow("zig-roguelike", 1920, 1080);
     checkPixelFormat(window);
     var surface = Surface.from_sdl_window(window);
 
+    var dungeon_map = std.mem.zeroes([dungeon_height][dungeon_width]dungeon_tile);
+    dungeon_map[1][2] = .FLOOR;
+    dungeon_map[3][4] = .FLOOR;
+    dungeon_map[3][5] = .FLOOR;
+
     const char_map = CharMap.load("src/assets/charmap-oldschool-white.png", 7, 9);
-    _ = char_map; // autofix
+    const char_scale_factor = 3;
 
     var running = true;
     var event: c.SDL_Event = undefined;
     while (running) {
         clearScreen(&surface);
-        // do drawing here
+
+        for (0..dungeon_height) |j| {
+            for (0..dungeon_width) |i| {
+                const char: u8 = switch (dungeon_map[j][i]) {
+                    .WALL => '#',
+                    .FLOOR => '.',
+                };
+                char_map.drawChar(
+                    char,
+                    surface.pixels,
+                    .{ .x = @intCast(i * char_map.char_pixel_width * char_scale_factor), .y = @intCast(j * char_map.char_pixel_height * char_scale_factor) },
+                    surface.width,
+                    Colour.white,
+                    Colour.black,
+                    char_scale_factor,
+                );
+            }
+        }
+
         updateScreen(window);
 
         while (c.SDL_PollEvent(@ptrCast(&event)) != 0) {
