@@ -44,6 +44,7 @@ const CharMap = struct {
         self: *const Self,
         char: u8,
         pixels: [*]u8,
+        pixel_position: Position,
         pixels_per_row: u32,
         fg_colour: Colour,
         bg_colour: Colour,
@@ -58,13 +59,36 @@ const CharMap = struct {
                 const b = self.data[charmap_data_idx + 2];
                 const colour = if (r != 0 and g != 0 and b != 0) fg_colour else bg_colour;
                 const scaled_pixel = Rectangle{
-                    .pos_x = @intCast(i * scale_factor + 1000),
-                    .pos_y = @intCast(j * scale_factor + 500),
+                    .pos_x = @intCast(i * scale_factor + pixel_position.x),
+                    .pos_y = @intCast(j * scale_factor + pixel_position.y),
                     .width = scale_factor,
                     .height = scale_factor,
                 };
                 scaled_pixel.draw(pixels, colour, pixels_per_row);
             }
+        }
+    }
+
+    fn drawString(
+        self: *const Self,
+        str: []const u8,
+        pixels: [*]u8,
+        pixel_position: Position,
+        pixels_per_row: u32,
+        fg_colour: Colour,
+        bg_colour: Colour,
+        scale_factor: u32,
+    ) void {
+        for (str, 0..) |char, i| {
+            self.drawChar(
+                char,
+                pixels,
+                .{ .x = @intCast(pixel_position.x + i * scale_factor * self.char_pixel_width), .y = pixel_position.y },
+                pixels_per_row,
+                fg_colour,
+                bg_colour,
+                scale_factor,
+            );
         }
     }
 };
@@ -176,6 +200,7 @@ const Position = struct { x: u32, y: u32 };
 
 fn getCharIndices(char: u8) Position {
     return switch (char) {
+        ' ' => .{ .x = 0, .y = 0 },
         '!' => .{ .x = 1, .y = 0 },
         '"' => .{ .x = 2, .y = 0 },
         '#' => .{ .x = 3, .y = 0 },
@@ -247,29 +272,29 @@ fn getCharIndices(char: u8) Position {
         'e' => .{ .x = 15, .y = 3 },
         'f' => .{ .x = 16, .y = 3 },
         'g' => .{ .x = 17, .y = 3 },
-        'h' => .{ .x = 0, .y = 3 },
-        'i' => .{ .x = 1, .y = 3 },
-        'j' => .{ .x = 2, .y = 3 },
-        'k' => .{ .x = 3, .y = 3 },
-        'l' => .{ .x = 4, .y = 3 },
-        'm' => .{ .x = 5, .y = 3 },
-        'n' => .{ .x = 6, .y = 3 },
-        'o' => .{ .x = 7, .y = 3 },
-        'p' => .{ .x = 8, .y = 3 },
-        'q' => .{ .x = 9, .y = 3 },
-        'r' => .{ .x = 10, .y = 3 },
-        's' => .{ .x = 11, .y = 3 },
-        't' => .{ .x = 12, .y = 3 },
-        'u' => .{ .x = 13, .y = 3 },
-        'v' => .{ .x = 14, .y = 3 },
-        'w' => .{ .x = 15, .y = 3 },
-        'x' => .{ .x = 16, .y = 3 },
-        'y' => .{ .x = 17, .y = 3 },
-        'z' => .{ .x = 0, .y = 4 },
-        '{' => .{ .x = 1, .y = 4 },
-        '|' => .{ .x = 2, .y = 4 },
-        '}' => .{ .x = 3, .y = 4 },
-        '~' => .{ .x = 4, .y = 4 },
+        'h' => .{ .x = 0, .y = 4 },
+        'i' => .{ .x = 1, .y = 4 },
+        'j' => .{ .x = 2, .y = 4 },
+        'k' => .{ .x = 3, .y = 4 },
+        'l' => .{ .x = 4, .y = 4 },
+        'm' => .{ .x = 5, .y = 4 },
+        'n' => .{ .x = 6, .y = 4 },
+        'o' => .{ .x = 7, .y = 4 },
+        'p' => .{ .x = 8, .y = 4 },
+        'q' => .{ .x = 9, .y = 4 },
+        'r' => .{ .x = 10, .y = 4 },
+        's' => .{ .x = 11, .y = 4 },
+        't' => .{ .x = 12, .y = 4 },
+        'u' => .{ .x = 13, .y = 4 },
+        'v' => .{ .x = 14, .y = 4 },
+        'w' => .{ .x = 15, .y = 4 },
+        'x' => .{ .x = 16, .y = 4 },
+        'y' => .{ .x = 17, .y = 4 },
+        'z' => .{ .x = 0, .y = 5 },
+        '{' => .{ .x = 1, .y = 5 },
+        '|' => .{ .x = 2, .y = 5 },
+        '}' => .{ .x = 3, .y = 5 },
+        '~' => .{ .x = 4, .y = 5 },
         else => std.debug.panic("Illegal character {c} for current font", .{char}),
     };
 }
@@ -280,7 +305,7 @@ pub fn main() !void {
     checkPixelFormat(window);
     var surface = Surface.from_sdl_window(window);
 
-    const charmap = CharMap.load("src/assets/charmap-oldschool-white.png", 7, 9);
+    const char_map = CharMap.load("src/assets/charmap-oldschool-white.png", 7, 9);
     const scale_factor = 3;
 
     var running = true;
@@ -294,12 +319,13 @@ pub fn main() !void {
             surface.width,
         );
 
-        for (0..charmap.total_height) |j| {
-            for (0..charmap.total_width) |i| {
-                const charmap_data_idx = (charmap.total_width * charmap.bytes_per_pixel * j) + (charmap.bytes_per_pixel * i);
-                const r = charmap.data[charmap_data_idx + 0];
-                const g = charmap.data[charmap_data_idx + 1];
-                const b = charmap.data[charmap_data_idx + 2];
+        // draw whole font
+        for (0..char_map.total_height) |j| {
+            for (0..char_map.total_width) |i| {
+                const charmap_data_idx = (char_map.total_width * char_map.bytes_per_pixel * j) + (char_map.bytes_per_pixel * i);
+                const r = char_map.data[charmap_data_idx + 0];
+                const g = char_map.data[charmap_data_idx + 1];
+                const b = char_map.data[charmap_data_idx + 2];
                 const colour = Colour{ .r = r, .g = g, .b = b };
                 const scaled_pixel = Rectangle{
                     .pos_x = @intCast(i * scale_factor),
@@ -311,13 +337,14 @@ pub fn main() !void {
             }
         }
 
-        charmap.drawChar(
-            'a',
+        char_map.drawString(
+            "So it turns out this font looks pretty gross[({.,`'\"!?$%#*})]",
             surface.pixels,
+            .{ .x = 0, .y = 500 },
             surface.width,
             .{ .r = 255, .g = 255, .b = 0 },
             .{ .r = 0, .g = 122, .b = 122 },
-            3,
+            4,
         );
 
         if (c.SDL_UpdateWindowSurface(window) < 0) {
