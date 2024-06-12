@@ -73,6 +73,31 @@ const dungeon_tile = enum {
     FLOOR,
 };
 
+pub const TiledRectangle = struct {
+    char_map: CharMap,
+    pixel_position: Position,
+    pixel_width: u32,
+    pixel_height: u32,
+    scale_factor: u32,
+
+    const Self = @This();
+
+    pub fn drawChar(self: *const Self, char: u8, tile_position: Position, pixels: [*]u8, pixels_per_row: u32, fg_colour: Colour, bg_colour: Colour) void {
+        self.char_map.drawChar(
+            char,
+            pixels,
+            .{
+                .x = self.pixel_position.x + self.scale_factor * self.char_map.char_pixel_width * tile_position.x,
+                .y = self.pixel_position.y + self.scale_factor * self.char_map.char_pixel_height * tile_position.y,
+            },
+            pixels_per_row,
+            fg_colour,
+            bg_colour,
+            self.scale_factor,
+        );
+    }
+};
+
 pub fn main() !void {
     sdlInit();
     const window = createWindow("zig-roguelike", 1920, 1080);
@@ -85,30 +110,45 @@ pub fn main() !void {
     dungeon_map[3][5] = .FLOOR;
 
     const char_map = CharMap.load("src/assets/charmap-oldschool-white.png", 7, 9);
-    const char_scale_factor = 3;
+    const char_scale_factor = 5;
 
     var running = true;
     var event: c.SDL_Event = undefined;
     while (running) {
         clearScreen(&surface);
 
+        const tiled_rect = TiledRectangle{
+            .char_map = char_map,
+            .pixel_position = .{ .x = 0, .y = 0 },
+            .pixel_width = surface.width,
+            .pixel_height = surface.height,
+            .scale_factor = char_scale_factor,
+        };
         for (0..dungeon_height) |j| {
             for (0..dungeon_width) |i| {
                 const char: u8 = switch (dungeon_map[j][i]) {
                     .WALL => '#',
                     .FLOOR => '.',
                 };
-                char_map.drawChar(
+                tiled_rect.drawChar(
                     char,
+                    .{ .x = @intCast(i), .y = @intCast(j) },
                     surface.pixels,
-                    .{ .x = @intCast(i * char_map.char_pixel_width * char_scale_factor), .y = @intCast(j * char_map.char_pixel_height * char_scale_factor) },
                     surface.width,
                     Colour.white,
                     Colour.black,
-                    char_scale_factor,
                 );
             }
         }
+
+        tiled_rect.drawChar(
+            '@',
+            .{ .x = 30, .y = 15 },
+            surface.pixels,
+            surface.width,
+            Colour.green,
+            Colour.grey(122),
+        );
 
         updateScreen(window);
 
