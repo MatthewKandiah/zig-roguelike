@@ -150,6 +150,15 @@ pub fn main() !void {
             Colour.grey(122),
         );
 
+        tiled_rect.drawChar(
+            '$',
+            .{ .x = 5, .y = 7 },
+            surface.pixels,
+            surface.width,
+            .{ .r = 255, .g = 255, .b = 0 },
+            .{ .r = 0, .g = 122, .b = 122 },
+        );
+
         updateScreen(window);
 
         while (c.SDL_PollEvent(@ptrCast(&event)) != 0) {
