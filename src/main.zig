@@ -66,8 +66,8 @@ fn checkPixelFormat(window: *c.struct_SDL_Window) void {
     }
 }
 
-const dungeon_width = 20;
-const dungeon_height = 10;
+const dungeon_width = 91;
+const dungeon_height = 40;
 const dungeon_tile = enum {
     WALL,
     FLOOR,
@@ -98,19 +98,41 @@ pub const TiledRectangle = struct {
     }
 };
 
+pub const GameState = struct {
+    dungeon_map: [dungeon_height][dungeon_width]dungeon_tile,
+    player_tile_position: Position,
+
+    const Self = @This();
+
+    pub fn init() Self {
+        return .{
+            .dungeon_map = std.mem.zeroes([dungeon_height][dungeon_width]dungeon_tile),
+            .player_tile_position = .{ .x = 0, .y = 0 },
+        };
+    }
+};
+
 pub fn main() !void {
     sdlInit();
     const window = createWindow("zig-roguelike", 1920, 1080);
     checkPixelFormat(window);
     var surface = Surface.from_sdl_window(window);
 
-    var dungeon_map = std.mem.zeroes([dungeon_height][dungeon_width]dungeon_tile);
-    dungeon_map[1][2] = .FLOOR;
-    dungeon_map[3][4] = .FLOOR;
-    dungeon_map[3][5] = .FLOOR;
+    var game_state = GameState.init();
+    for (0..20) |j| {
+        for (0..30) |i| {
+            game_state.dungeon_map[j][i] = .FLOOR;
+            game_state.dungeon_map[j + 5][i + 45] = .FLOOR;
+        }
+    }
+    for (0..2) |j| {
+        for (30..45) |i| {
+            game_state.dungeon_map[j + 10][i] = .FLOOR;
+        }
+    }
 
     const char_map = CharMap.load("src/assets/charmap-oldschool-white.png", 7, 9);
-    const char_scale_factor = 5;
+    const char_scale_factor = 3;
 
     var running = true;
     var event: c.SDL_Event = undefined;
@@ -126,7 +148,7 @@ pub fn main() !void {
         };
         for (0..dungeon_height) |j| {
             for (0..dungeon_width) |i| {
-                const char: u8 = switch (dungeon_map[j][i]) {
+                const char: u8 = switch (game_state.dungeon_map[j][i]) {
                     .WALL => '#',
                     .FLOOR => '.',
                 };
@@ -143,20 +165,11 @@ pub fn main() !void {
 
         tiled_rect.drawChar(
             '@',
-            .{ .x = 30, .y = 15 },
+            game_state.player_tile_position,
             surface.pixels,
             surface.width,
-            Colour.green,
-            Colour.grey(122),
-        );
-
-        tiled_rect.drawChar(
-            '$',
-            .{ .x = 5, .y = 7 },
-            surface.pixels,
-            surface.width,
-            .{ .r = 255, .g = 255, .b = 0 },
-            .{ .r = 0, .g = 122, .b = 122 },
+            Colour.yellow,
+            Colour.black,
         );
 
         updateScreen(window);
@@ -168,6 +181,10 @@ pub fn main() !void {
             if (event.type == c.SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     c.SDLK_ESCAPE => running = false,
+                    c.SDLK_UP => game_state.player_tile_position.y -= 1,
+                    c.SDLK_DOWN => game_state.player_tile_position.y += 1,
+                    c.SDLK_LEFT => game_state.player_tile_position.x -= 1,
+                    c.SDLK_RIGHT => game_state.player_tile_position.x += 1,
                     else => {},
                 }
             }

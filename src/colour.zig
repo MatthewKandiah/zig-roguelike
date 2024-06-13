@@ -14,4 +14,5 @@ pub const Colour = struct {
     pub const red = Self{ .r = 255, .g = 0, .b = 0 };
     pub const green = Self{ .r = 0, .g = 255, .b = 0 };
     pub const blue = Self{ .r = 0, .g = 0, .b = 255 };
+    pub const yellow = Self{ .r = 255, .g = 255, .b = 0 };
 };
