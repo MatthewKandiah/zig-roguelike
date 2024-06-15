@@ -6,33 +6,11 @@ const stb = @cImport({
     @cInclude("stb_image.h");
 });
 
-pub const Position = struct { x: u32, y: u32 };
+pub const Position = struct { x: usize, y: usize };
 
-pub const Rectangle = struct {
-    pos_x: u32,
-    pos_y: u32,
-    width: u32,
-    height: u32,
+pub const Dimensions = struct { width: usize, height: usize };
 
-    const Self = @This();
-
-    pub fn draw(
-        self: Self,
-        pixels: [*]u8,
-        colour: Colour,
-        pixels_per_row: u32,
-    ) void {
-        const bytes_per_pixel = 4;
-        for (0..self.height) |j| {
-            for (0..self.width) |i| {
-                const idx = (pixels_per_row * bytes_per_pixel * (j + self.pos_y)) + (bytes_per_pixel * (i + self.pos_x));
-                pixels[idx + 0] = colour.b;
-                pixels[idx + 1] = colour.g;
-                pixels[idx + 2] = colour.r;
-            }
-        }
-    }
-};
+pub const Rectangle = struct { pos: Position, dim: Dimensions };
 
 pub const Colour = struct {
     r: u8,
@@ -54,196 +32,154 @@ pub const Colour = struct {
 };
 
 pub const CharMap = struct {
-    data: [*]u8,
-    total_width: u32,
-    total_height: u32,
-    bytes_per_pixel: u32,
-    char_pixel_width: u32,
-    char_pixel_height: u32,
+    data: []u8,
+    width: usize,
+    height: usize,
+    char_width: usize,
+    char_height: usize,
 
     const Self = @This();
 
     // TODO - our font asset is tiny, could its data be baked in at compile time?
-    pub fn load(path: []const u8, char_pixel_width: u32, char_pixel_height: u32) Self {
-        var width: c_int = undefined;
-        var height: c_int = undefined;
+    pub fn load(path: []const u8, char_width: usize, char_height: usize, allocator: std.mem.Allocator) !Self {
+        var w: c_int = undefined;
+        var h: c_int = undefined;
         var nrChannels: c_int = undefined;
-        var data: [*]u8 = undefined;
-        data = stb.stbi_load(@ptrCast(path), &width, &height, &nrChannels, 0);
-        return .{
-            .data = data,
-            .total_width = @intCast(width),
-            .total_height = @intCast(height),
-            .bytes_per_pixel = @intCast(nrChannels),
-            .char_pixel_width = char_pixel_width,
-            .char_pixel_height = char_pixel_height,
-        };
-    }
-
-    pub fn pixelPositionFromCharIndices(self: *const Self, charIndices: Position) Position {
-        return .{
-            .x = charIndices.x * self.char_pixel_width,
-            .y = charIndices.y * self.char_pixel_height,
-        };
-    }
-
-    pub fn drawChar(
-        self: *const Self,
-        char: u8,
-        pixels: [*]u8,
-        pixel_position: Position,
-        pixels_per_row: u32,
-        fg_colour: Colour,
-        bg_colour: Colour,
-        scale_factor: u32,
-    ) void {
-        for (0..self.char_pixel_height) |j| {
-            for (0..self.char_pixel_width) |i| {
-                const char_position = self.pixelPositionFromCharIndices(getCharIndices(char));
-                const charmap_data_idx = (self.total_width * self.bytes_per_pixel * (j + char_position.y)) + (self.bytes_per_pixel * (i + char_position.x));
-                const r = self.data[charmap_data_idx + 0];
-                const g = self.data[charmap_data_idx + 1];
-                const b = self.data[charmap_data_idx + 2];
-                const colour = if (r != 0 and g != 0 and b != 0) fg_colour else bg_colour;
-                const scaled_pixel = Rectangle{
-                    .pos_x = @intCast(i * scale_factor + pixel_position.x),
-                    .pos_y = @intCast(j * scale_factor + pixel_position.y),
-                    .width = scale_factor,
-                    .height = scale_factor,
-                };
-                scaled_pixel.draw(pixels, colour, pixels_per_row);
+        var input_data: [*]u8 = undefined;
+        input_data = stb.stbi_load(@ptrCast(path), &w, &h, &nrChannels, 0);
+        defer stb.stbi_image_free(input_data);
+        const width: usize = @as(usize, @abs(w));
+        const height: usize = @as(usize, @abs(h));
+        const input_bytes_per_pixel = @as(usize, @abs(nrChannels));
+        var output_data = try allocator.alloc(u8, width * height * 4);
+        for (0..height / char_height) |tile_j| {
+            for (0..width / char_width) |tile_i| {
+                for (0..char_height) |pixel_j| {
+                    for (0..char_width) |pixel_i| {
+                        const pixel_index: usize = tile_i * char_width + pixel_i + width * (tile_j * char_height + pixel_j);
+                        output_data[4 * pixel_index + 0] = input_data[input_bytes_per_pixel * pixel_index + 0];
+                        output_data[4 * pixel_index + 1] = input_data[input_bytes_per_pixel * pixel_index + 1];
+                        output_data[4 * pixel_index + 2] = input_data[input_bytes_per_pixel * pixel_index + 2];
+                        output_data[4 * pixel_index + 3] = if (input_bytes_per_pixel == 4) input_data[input_bytes_per_pixel * pixel_index + 3] else 0;
+                    }
+                }
             }
         }
-    }
-
-    pub fn drawString(
-        self: *const Self,
-        str: []const u8,
-        pixels: [*]u8,
-        pixel_position: Position,
-        pixels_per_row: u32,
-        fg_colour: Colour,
-        bg_colour: Colour,
-        scale_factor: u32,
-    ) void {
-        for (str, 0..) |char, i| {
-            self.drawChar(
-                char,
-                pixels,
-                .{ .x = @intCast(pixel_position.x + i * scale_factor * self.char_pixel_width), .y = pixel_position.y },
-                pixels_per_row,
-                fg_colour,
-                bg_colour,
-                scale_factor,
-            );
-        }
+        return Self{
+            .data = output_data,
+            .width = width,
+            .height = height,
+            .char_width = char_width,
+            .char_height = char_height,
+        };
     }
 };
 
-pub fn getCharIndices(char: u8) Position {
+pub fn getCharImageDataIndex(char: u8) usize {
     return switch (char) {
-        ' ' => .{ .x = 0, .y = 0 },
-        '!' => .{ .x = 1, .y = 0 },
-        '"' => .{ .x = 2, .y = 0 },
-        '#' => .{ .x = 3, .y = 0 },
-        '$' => .{ .x = 4, .y = 0 },
-        '%' => .{ .x = 5, .y = 0 },
-        '&' => .{ .x = 6, .y = 0 },
-        '\'' => .{ .x = 7, .y = 0 },
-        '(' => .{ .x = 8, .y = 0 },
-        ')' => .{ .x = 9, .y = 0 },
-        '*' => .{ .x = 10, .y = 0 },
-        '+' => .{ .x = 11, .y = 0 },
-        ',' => .{ .x = 12, .y = 0 },
-        '-' => .{ .x = 13, .y = 0 },
-        '.' => .{ .x = 14, .y = 0 },
-        '/' => .{ .x = 15, .y = 0 },
-        '0' => .{ .x = 16, .y = 0 },
-        '1' => .{ .x = 17, .y = 0 },
-        '2' => .{ .x = 0, .y = 1 },
-        '3' => .{ .x = 1, .y = 1 },
-        '4' => .{ .x = 2, .y = 1 },
-        '5' => .{ .x = 3, .y = 1 },
-        '6' => .{ .x = 4, .y = 1 },
-        '7' => .{ .x = 5, .y = 1 },
-        '8' => .{ .x = 6, .y = 1 },
-        '9' => .{ .x = 7, .y = 1 },
-        ':' => .{ .x = 8, .y = 1 },
-        ';' => .{ .x = 9, .y = 1 },
-        '<' => .{ .x = 10, .y = 1 },
-        '=' => .{ .x = 11, .y = 1 },
-        '>' => .{ .x = 12, .y = 1 },
-        '?' => .{ .x = 13, .y = 1 },
-        '@' => .{ .x = 14, .y = 1 },
-        'A' => .{ .x = 15, .y = 1 },
-        'B' => .{ .x = 16, .y = 1 },
-        'C' => .{ .x = 17, .y = 1 },
-        'D' => .{ .x = 0, .y = 2 },
-        'E' => .{ .x = 1, .y = 2 },
-        'F' => .{ .x = 2, .y = 2 },
-        'G' => .{ .x = 3, .y = 2 },
-        'H' => .{ .x = 4, .y = 2 },
-        'I' => .{ .x = 5, .y = 2 },
-        'J' => .{ .x = 6, .y = 2 },
-        'K' => .{ .x = 7, .y = 2 },
-        'L' => .{ .x = 8, .y = 2 },
-        'M' => .{ .x = 9, .y = 2 },
-        'N' => .{ .x = 10, .y = 2 },
-        'O' => .{ .x = 11, .y = 2 },
-        'P' => .{ .x = 12, .y = 2 },
-        'Q' => .{ .x = 13, .y = 2 },
-        'R' => .{ .x = 14, .y = 2 },
-        'S' => .{ .x = 15, .y = 2 },
-        'T' => .{ .x = 16, .y = 2 },
-        'U' => .{ .x = 17, .y = 2 },
-        'V' => .{ .x = 0, .y = 3 },
-        'W' => .{ .x = 1, .y = 3 },
-        'X' => .{ .x = 2, .y = 3 },
-        'Y' => .{ .x = 3, .y = 3 },
-        'Z' => .{ .x = 4, .y = 3 },
-        '[' => .{ .x = 5, .y = 3 },
-        '\\' => .{ .x = 6, .y = 3 },
-        ']' => .{ .x = 7, .y = 3 },
-        '^' => .{ .x = 8, .y = 3 },
-        '_' => .{ .x = 9, .y = 3 },
-        '`' => .{ .x = 10, .y = 3 },
-        'a' => .{ .x = 11, .y = 3 },
-        'b' => .{ .x = 12, .y = 3 },
-        'c' => .{ .x = 13, .y = 3 },
-        'd' => .{ .x = 14, .y = 3 },
-        'e' => .{ .x = 15, .y = 3 },
-        'f' => .{ .x = 16, .y = 3 },
-        'g' => .{ .x = 17, .y = 3 },
-        'h' => .{ .x = 0, .y = 4 },
-        'i' => .{ .x = 1, .y = 4 },
-        'j' => .{ .x = 2, .y = 4 },
-        'k' => .{ .x = 3, .y = 4 },
-        'l' => .{ .x = 4, .y = 4 },
-        'm' => .{ .x = 5, .y = 4 },
-        'n' => .{ .x = 6, .y = 4 },
-        'o' => .{ .x = 7, .y = 4 },
-        'p' => .{ .x = 8, .y = 4 },
-        'q' => .{ .x = 9, .y = 4 },
-        'r' => .{ .x = 10, .y = 4 },
-        's' => .{ .x = 11, .y = 4 },
-        't' => .{ .x = 12, .y = 4 },
-        'u' => .{ .x = 13, .y = 4 },
-        'v' => .{ .x = 14, .y = 4 },
-        'w' => .{ .x = 15, .y = 4 },
-        'x' => .{ .x = 16, .y = 4 },
-        'y' => .{ .x = 17, .y = 4 },
-        'z' => .{ .x = 0, .y = 5 },
-        '{' => .{ .x = 1, .y = 5 },
-        '|' => .{ .x = 2, .y = 5 },
-        '}' => .{ .x = 3, .y = 5 },
-        '~' => .{ .x = 4, .y = 5 },
+        ' ' => 0,
+        '!' => 1,
+        '"' => 2,
+        '#' => 3,
+        '$' => 4,
+        '%' => 5,
+        '&' => 6,
+        '\'' => 7,
+        '(' => 8,
+        ')' => 9,
+        '*' => 10,
+        '+' => 11,
+        ',' => 12,
+        '-' => 13,
+        '.' => 14,
+        '/' => 15,
+        '0' => 16,
+        '1' => 17,
+        '2' => 18,
+        '3' => 19,
+        '4' => 20,
+        '5' => 21,
+        '6' => 22,
+        '7' => 23,
+        '8' => 24,
+        '9' => 25,
+        ':' => 26,
+        ';' => 27,
+        '<' => 28,
+        '=' => 29,
+        '>' => 30,
+        '?' => 31,
+        '@' => 32,
+        'A' => 33,
+        'B' => 34,
+        'C' => 35,
+        'D' => 36,
+        'E' => 37,
+        'F' => 38,
+        'G' => 39,
+        'H' => 40,
+        'I' => 41,
+        'J' => 42,
+        'K' => 43,
+        'L' => 44,
+        'M' => 45,
+        'N' => 46,
+        'O' => 47,
+        'P' => 48,
+        'Q' => 49,
+        'R' => 50,
+        'S' => 51,
+        'T' => 52,
+        'U' => 53,
+        'V' => 54,
+        'W' => 55,
+        'X' => 56,
+        'Y' => 57,
+        'Z' => 58,
+        '[' => 59,
+        '\\' => 60,
+        ']' => 61,
+        '^' => 62,
+        '_' => 63,
+        '`' => 64,
+        'a' => 65,
+        'b' => 66,
+        'c' => 67,
+        'd' => 68,
+        'e' => 69,
+        'f' => 70,
+        'g' => 71,
+        'h' => 72,
+        'i' => 73,
+        'j' => 74,
+        'k' => 75,
+        'l' => 76,
+        'm' => 77,
+        'n' => 78,
+        'o' => 79,
+        'p' => 80,
+        'q' => 81,
+        'r' => 82,
+        's' => 83,
+        't' => 84,
+        'u' => 85,
+        'v' => 86,
+        'w' => 87,
+        'x' => 88,
+        'y' => 89,
+        'z' => 90,
+        '{' => 91,
+        '|' => 92,
+        '}' => 93,
+        '~' => 94,
         else => std.debug.panic("Illegal character {c} for current font", .{char}),
     };
 }
+
 const Surface = struct {
     pixels: [*]u8,
-    width: u32,
-    height: u32,
+    width: usize,
+    height: usize,
 
     const Self = @This();
 
@@ -278,7 +214,7 @@ fn sdlInit() void {
     }
 }
 
-fn createWindow(title: []const u8, width: u32, height: u32) *c.struct_SDL_Window {
+fn createWindow(title: []const u8, width: usize, height: usize) *c.struct_SDL_Window {
     return c.SDL_CreateWindow(
         @ptrCast(title),
         c.SDL_WINDOWPOS_UNDEFINED,
@@ -296,50 +232,12 @@ fn checkPixelFormat(window: *c.struct_SDL_Window) void {
     }
 }
 
-const dungeon_width = 91;
-const dungeon_height = 40;
-const dungeon_tile = enum {
-    WALL,
-    FLOOR,
-};
-
 pub const TiledRectangle = struct {
     char_map: CharMap,
     pixel_position: Position,
-    pixel_width: u32,
-    pixel_height: u32,
-    scale_factor: u32,
-
-    const Self = @This();
-
-    pub fn drawChar(self: *const Self, char: u8, tile_position: Position, pixels: [*]u8, pixels_per_row: u32, fg_colour: Colour, bg_colour: Colour) void {
-        self.char_map.drawChar(
-            char,
-            pixels,
-            .{
-                .x = self.pixel_position.x + self.scale_factor * self.char_map.char_pixel_width * tile_position.x,
-                .y = self.pixel_position.y + self.scale_factor * self.char_map.char_pixel_height * tile_position.y,
-            },
-            pixels_per_row,
-            fg_colour,
-            bg_colour,
-            self.scale_factor,
-        );
-    }
-};
-
-pub const GameState = struct {
-    dungeon_map: [dungeon_height][dungeon_width]dungeon_tile,
-    player_tile_position: Position,
-
-    const Self = @This();
-
-    pub fn init() Self {
-        return .{
-            .dungeon_map = std.mem.zeroes([dungeon_height][dungeon_width]dungeon_tile),
-            .player_tile_position = .{ .x = 0, .y = 0 },
-        };
-    }
+    pixel_width: usize,
+    pixel_height: usize,
+    scale_factor: usize,
 };
 
 pub fn main() !void {
@@ -348,59 +246,18 @@ pub fn main() !void {
     checkPixelFormat(window);
     var surface = Surface.from_sdl_window(window);
 
-    var game_state = GameState.init();
-    for (0..20) |j| {
-        for (0..30) |i| {
-            game_state.dungeon_map[j][i] = .FLOOR;
-            game_state.dungeon_map[j + 5][i + 45] = .FLOOR;
-        }
-    }
-    for (0..2) |j| {
-        for (30..45) |i| {
-            game_state.dungeon_map[j + 10][i] = .FLOOR;
-        }
-    }
-
-    const char_map = CharMap.load("src/assets/charmap-oldschool-white.png", 7, 9);
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    const char_map = try CharMap.load("src/assets/charmap-oldschool-white.png", 7, 9, allocator);
+    _ = char_map;
     const char_scale_factor = 3;
+    _ = char_scale_factor;
 
     var running = true;
     var event: c.SDL_Event = undefined;
     while (running) {
-        clearScreen(&surface);
-
-        const tiled_rect = TiledRectangle{
-            .char_map = char_map,
-            .pixel_position = .{ .x = 0, .y = 0 },
-            .pixel_width = surface.width,
-            .pixel_height = surface.height,
-            .scale_factor = char_scale_factor,
-        };
-        for (0..dungeon_height) |j| {
-            for (0..dungeon_width) |i| {
-                const char: u8 = switch (game_state.dungeon_map[j][i]) {
-                    .WALL => '#',
-                    .FLOOR => '.',
-                };
-                tiled_rect.drawChar(
-                    char,
-                    .{ .x = @intCast(i), .y = @intCast(j) },
-                    surface.pixels,
-                    surface.width,
-                    Colour.white,
-                    Colour.black,
-                );
-            }
-        }
-
-        tiled_rect.drawChar(
-            '@',
-            game_state.player_tile_position,
-            surface.pixels,
-            surface.width,
-            Colour.yellow,
-            Colour.black,
-        );
+        // TODO - clear screen
+        // TODO - draw entities
 
         updateScreen(window);
 
@@ -411,10 +268,6 @@ pub fn main() !void {
             if (event.type == c.SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     c.SDLK_ESCAPE => running = false,
-                    c.SDLK_UP => game_state.player_tile_position.y -= 1,
-                    c.SDLK_DOWN => game_state.player_tile_position.y += 1,
-                    c.SDLK_LEFT => game_state.player_tile_position.x -= 1,
-                    c.SDLK_RIGHT => game_state.player_tile_position.x += 1,
                     else => {},
                 }
             }
@@ -424,16 +277,6 @@ pub fn main() !void {
             }
         }
     }
-}
-
-fn clearScreen(surface: *Surface) void {
-    const clear_screen_colour_byte: u8 = 122;
-    const whole_screen_rect = Rectangle{ .pos_x = 0, .pos_y = 0, .width = surface.width, .height = surface.height };
-    whole_screen_rect.draw(
-        surface.pixels,
-        Colour.grey(clear_screen_colour_byte),
-        surface.width,
-    );
 }
 
 fn updateScreen(window: *c.struct_SDL_Window) void {
