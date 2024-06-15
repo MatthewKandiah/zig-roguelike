@@ -6,9 +6,20 @@ const stb = @cImport({
     @cInclude("stb_image.h");
 });
 
+const BYTES_PER_PIXEL = 4;
+
 pub const Position = struct { x: usize, y: usize };
 
-pub const Dimensions = struct { width: usize, height: usize };
+pub const Dimensions = struct {
+    width: usize,
+    height: usize,
+
+    const Self = @This();
+
+    pub fn area(self: Self) usize {
+        return self.width * self.height;
+    }
+};
 
 pub const Rectangle = struct { pos: Position, dim: Dimensions };
 
@@ -35,13 +46,13 @@ pub const CharMap = struct {
     data: []u8,
     width: usize,
     height: usize,
-    char_width: usize,
-    char_height: usize,
+    char_dim: Dimensions,
 
     const Self = @This();
 
+    // TODO - verify this is working as expected, I'm getting garbled output at the minute
     // TODO - our font asset is tiny, could its data be baked in at compile time?
-    pub fn load(path: []const u8, char_width: usize, char_height: usize, allocator: std.mem.Allocator) !Self {
+    pub fn load(path: []const u8, char_dim: Dimensions, allocator: std.mem.Allocator) !Self {
         var w: c_int = undefined;
         var h: c_int = undefined;
         var nrChannels: c_int = undefined;
@@ -51,16 +62,16 @@ pub const CharMap = struct {
         const width: usize = @as(usize, @abs(w));
         const height: usize = @as(usize, @abs(h));
         const input_bytes_per_pixel = @as(usize, @abs(nrChannels));
-        var output_data = try allocator.alloc(u8, width * height * 4);
-        for (0..height / char_height) |tile_j| {
-            for (0..width / char_width) |tile_i| {
-                for (0..char_height) |pixel_j| {
-                    for (0..char_width) |pixel_i| {
-                        const pixel_index: usize = tile_i * char_width + pixel_i + width * (tile_j * char_height + pixel_j);
-                        output_data[4 * pixel_index + 0] = input_data[input_bytes_per_pixel * pixel_index + 0];
-                        output_data[4 * pixel_index + 1] = input_data[input_bytes_per_pixel * pixel_index + 1];
-                        output_data[4 * pixel_index + 2] = input_data[input_bytes_per_pixel * pixel_index + 2];
-                        output_data[4 * pixel_index + 3] = if (input_bytes_per_pixel == 4) input_data[input_bytes_per_pixel * pixel_index + 3] else 0;
+        var output_data = try allocator.alloc(u8, width * height * BYTES_PER_PIXEL);
+        for (0..height / char_dim.height) |tile_j| {
+            for (0..width / char_dim.width) |tile_i| {
+                for (0..char_dim.height) |pixel_j| {
+                    for (0..char_dim.width) |pixel_i| {
+                        const pixel_index: usize = tile_i * char_dim.width + pixel_i + width * (tile_j * char_dim.height + pixel_j);
+                        output_data[BYTES_PER_PIXEL * pixel_index + 0] = input_data[input_bytes_per_pixel * pixel_index + 0];
+                        output_data[BYTES_PER_PIXEL * pixel_index + 1] = input_data[input_bytes_per_pixel * pixel_index + 1];
+                        output_data[BYTES_PER_PIXEL * pixel_index + 2] = input_data[input_bytes_per_pixel * pixel_index + 2];
+                        output_data[BYTES_PER_PIXEL * pixel_index + 3] = if (input_bytes_per_pixel == 4) input_data[input_bytes_per_pixel * pixel_index + 3] else 0;
                     }
                 }
             }
@@ -69,8 +80,16 @@ pub const CharMap = struct {
             .data = output_data,
             .width = width,
             .height = height,
-            .char_width = char_width,
-            .char_height = char_height,
+            .char_dim = char_dim,
+        };
+    }
+
+    pub fn drawData(self: Self, index: usize) DrawData {
+        const byte_count = self.char_dim.area() * BYTES_PER_PIXEL;
+        const start_index = index * self.char_dim.area() * BYTES_PER_PIXEL;
+        return DrawData{
+            .bytes = self.data[start_index .. start_index + byte_count],
+            .width = self.char_dim.width,
         };
     }
 };
@@ -200,6 +219,19 @@ const Surface = struct {
         self.width = @intCast(surface.w);
         self.height = @intCast(surface.h);
     }
+
+    fn draw(self: Self, draw_data: DrawData, pos: Position) void {
+        for (0..draw_data.bytes.len) |i| {
+            const x = i % (draw_data.width * BYTES_PER_PIXEL);
+            const y = i / (draw_data.width * BYTES_PER_PIXEL);
+            self.pixels[pos.x + x + self.width * BYTES_PER_PIXEL * (pos.y + y)] = draw_data.bytes[i];
+        }
+    }
+};
+
+const DrawData = struct {
+    bytes: []u8,
+    width: usize,
 };
 
 fn sdlPanic() noreturn {
@@ -242,14 +274,17 @@ pub const TiledRectangle = struct {
 
 pub fn main() !void {
     sdlInit();
-    const window = createWindow("zig-roguelike", 1920, 1080);
+    const window = createWindow("zig-roguelike", 800, 600);
     checkPixelFormat(window);
     var surface = Surface.from_sdl_window(window);
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    const char_map = try CharMap.load("src/assets/charmap-oldschool-white.png", 7, 9, allocator);
-    _ = char_map;
+    const char_map = try CharMap.load(
+        "src/assets/charmap-oldschool-white.png",
+        .{ .width = 7, .height = 9 },
+        allocator,
+    );
     const char_scale_factor = 3;
     _ = char_scale_factor;
 
@@ -258,6 +293,12 @@ pub fn main() !void {
     while (running) {
         // TODO - clear screen
         // TODO - draw entities
+        const char = '$';
+        std.debug.print("char image data index: {}\n", .{getCharImageDataIndex(char)});
+        std.debug.print("draw data start address: \t{}\n", .{@intFromPtr(char_map.drawData(getCharImageDataIndex(char)).bytes.ptr)});
+        std.debug.print("charmap data start address: \t{}\n", .{@intFromPtr(char_map.data.ptr)});
+        std.debug.print("draw data: {any}\n", .{char_map.drawData(getCharImageDataIndex(char)).bytes});
+        surface.draw(char_map.drawData(getCharImageDataIndex(char)), .{ .x = 100, .y = 100 });
 
         updateScreen(window);
 
