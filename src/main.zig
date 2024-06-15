@@ -44,42 +44,37 @@ pub const Colour = struct {
 
 pub const CharMap = struct {
     data: []u8,
-    width: usize,
-    height: usize,
+    dim: Dimensions,
     char_dim: Dimensions,
 
     const Self = @This();
 
     // TODO - verify this is working as expected, I'm getting garbled output at the minute
     // TODO - our font asset is tiny, could its data be baked in at compile time?
-    pub fn load(path: []const u8, char_dim: Dimensions, allocator: std.mem.Allocator) !Self {
-        var w: c_int = undefined;
-        var h: c_int = undefined;
-        var nrChannels: c_int = undefined;
-        var input_data: [*]u8 = undefined;
-        input_data = stb.stbi_load(@ptrCast(path), &w, &h, &nrChannels, 0);
-        defer stb.stbi_image_free(input_data);
-        const width: usize = @as(usize, @abs(w));
-        const height: usize = @as(usize, @abs(h));
-        const input_bytes_per_pixel = @as(usize, @abs(nrChannels));
-        var output_data = try allocator.alloc(u8, width * height * BYTES_PER_PIXEL);
-        for (0..height / char_dim.height) |tile_j| {
-            for (0..width / char_dim.width) |tile_i| {
+    pub fn load(input_data: [*]u8, image_dim: Dimensions, input_bytes_per_pixel: usize, char_dim: Dimensions, allocator: std.mem.Allocator) !Self {
+        std.debug.print("image_dim: {any}\n", .{image_dim});
+        var output_data = try allocator.alloc(u8, image_dim.area() * BYTES_PER_PIXEL);
+        var output_index: usize = 0;
+        for (0..image_dim.height / char_dim.height) |tile_j| {
+            for (0..image_dim.width / char_dim.width) |tile_i| {
                 for (0..char_dim.height) |pixel_j| {
                     for (0..char_dim.width) |pixel_i| {
-                        const pixel_index: usize = tile_i * char_dim.width + pixel_i + width * (tile_j * char_dim.height + pixel_j);
-                        output_data[BYTES_PER_PIXEL * pixel_index + 0] = input_data[input_bytes_per_pixel * pixel_index + 0];
-                        output_data[BYTES_PER_PIXEL * pixel_index + 1] = input_data[input_bytes_per_pixel * pixel_index + 1];
-                        output_data[BYTES_PER_PIXEL * pixel_index + 2] = input_data[input_bytes_per_pixel * pixel_index + 2];
-                        output_data[BYTES_PER_PIXEL * pixel_index + 3] = if (input_bytes_per_pixel == 4) input_data[input_bytes_per_pixel * pixel_index + 3] else 0;
+                        const pixel_index: usize = tile_i * char_dim.width + pixel_i + image_dim.width * (tile_j * char_dim.height + pixel_j);
+                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 0];
+                        output_index += 1;
+                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 1];
+                        output_index += 1;
+                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 2];
+                        output_index += 1;
+                        output_data[output_index] = if (input_bytes_per_pixel == 4) input_data[input_bytes_per_pixel * pixel_index + 3] else 0;
+                        output_index += 1;
                     }
                 }
             }
         }
         return Self{
             .data = output_data,
-            .width = width,
-            .height = height,
+            .dim = image_dim,
             .char_dim = char_dim,
         };
     }
@@ -234,6 +229,72 @@ const DrawData = struct {
     width: usize,
 };
 
+pub const TiledRectangle = struct {
+    char_map: CharMap,
+    pixel_position: Position,
+    pixel_width: usize,
+    pixel_height: usize,
+    scale_factor: usize,
+};
+
+pub fn main() !void {
+    sdlInit();
+    const window = createWindow("zig-roguelike", 800, 600);
+    checkPixelFormat(window);
+    var surface = Surface.from_sdl_window(window);
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+
+    var input_width: c_int = undefined;
+    var input_height: c_int = undefined;
+    var input_bytes_per_pixel: c_int = undefined;
+    var input_data: [*]u8 = undefined;
+    input_data = stb.stbi_load(@ptrCast("src/assets/charmap-oldschool-white.png"), &input_width, &input_height, &input_bytes_per_pixel, 0);
+
+    std.debug.print("input_width: {}\n", .{input_width});
+
+    const char_map = try CharMap.load(
+        input_data,
+        .{ .width = @as(usize, @abs(input_width)), .height = @as(usize, @abs(input_height)) },
+        @as(usize, @abs(input_bytes_per_pixel)),
+        .{ .width = 7, .height = 9 },
+        allocator,
+    );
+
+    var running = true;
+    var event: c.SDL_Event = undefined;
+    while (running) {
+        // TODO - clear screen
+        // TODO - draw entities
+        surface.draw(char_map.drawData(getCharImageDataIndex('!')), .{ .x = 0, .y = 0 });
+
+        updateScreen(window);
+
+        while (c.SDL_PollEvent(@ptrCast(&event)) != 0) {
+            if (event.type == c.SDL_QUIT) {
+                running = false;
+            }
+            if (event.type == c.SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                    c.SDLK_ESCAPE => running = false,
+                    else => {},
+                }
+            }
+            if (event.type == c.SDL_WINDOWEVENT) {
+                checkPixelFormat(window);
+                surface.update(window);
+            }
+        }
+    }
+}
+
+fn updateScreen(window: *c.struct_SDL_Window) void {
+    if (c.SDL_UpdateWindowSurface(window) < 0) {
+        sdlPanic();
+    }
+}
+
 fn sdlPanic() noreturn {
     const sdl_error_string = c.SDL_GetError();
     std.debug.panic("{s}", .{sdl_error_string});
@@ -261,67 +322,5 @@ fn checkPixelFormat(window: *c.struct_SDL_Window) void {
     const format = c.SDL_GetWindowPixelFormat(window);
     if (format != c.SDL_PIXELFORMAT_RGB888) {
         @panic("I've assumed RGB888 format so far, so expect wonky results if you push on!\n");
-    }
-}
-
-pub const TiledRectangle = struct {
-    char_map: CharMap,
-    pixel_position: Position,
-    pixel_width: usize,
-    pixel_height: usize,
-    scale_factor: usize,
-};
-
-pub fn main() !void {
-    sdlInit();
-    const window = createWindow("zig-roguelike", 800, 600);
-    checkPixelFormat(window);
-    var surface = Surface.from_sdl_window(window);
-
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    const char_map = try CharMap.load(
-        "src/assets/charmap-oldschool-white.png",
-        .{ .width = 7, .height = 9 },
-        allocator,
-    );
-    const char_scale_factor = 3;
-    _ = char_scale_factor;
-
-    var running = true;
-    var event: c.SDL_Event = undefined;
-    while (running) {
-        // TODO - clear screen
-        // TODO - draw entities
-        const char = '$';
-        std.debug.print("char image data index: {}\n", .{getCharImageDataIndex(char)});
-        std.debug.print("draw data start address: \t{}\n", .{@intFromPtr(char_map.drawData(getCharImageDataIndex(char)).bytes.ptr)});
-        std.debug.print("charmap data start address: \t{}\n", .{@intFromPtr(char_map.data.ptr)});
-        std.debug.print("draw data: {any}\n", .{char_map.drawData(getCharImageDataIndex(char)).bytes});
-        surface.draw(char_map.drawData(getCharImageDataIndex(char)), .{ .x = 100, .y = 100 });
-
-        updateScreen(window);
-
-        while (c.SDL_PollEvent(@ptrCast(&event)) != 0) {
-            if (event.type == c.SDL_QUIT) {
-                running = false;
-            }
-            if (event.type == c.SDL_KEYDOWN) {
-                switch (event.key.keysym.sym) {
-                    c.SDLK_ESCAPE => running = false,
-                    else => {},
-                }
-            }
-            if (event.type == c.SDL_WINDOWEVENT) {
-                checkPixelFormat(window);
-                surface.update(window);
-            }
-        }
-    }
-}
-
-fn updateScreen(window: *c.struct_SDL_Window) void {
-    if (c.SDL_UpdateWindowSurface(window) < 0) {
-        sdlPanic();
     }
 }
