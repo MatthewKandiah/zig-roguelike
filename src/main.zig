@@ -215,11 +215,15 @@ const Surface = struct {
         self.height = @intCast(surface.h);
     }
 
-    fn draw(self: Self, draw_data: DrawData, pos: Position) void {
+    fn draw(self: Self, draw_data: DrawData, pos: Position, scale_factor: usize) void {
         for (0..draw_data.bytes.len) |i| {
-            const x = i % (draw_data.width * BYTES_PER_PIXEL);
-            const y = i / (draw_data.width * BYTES_PER_PIXEL);
-            self.pixels[pos.x + x + self.width * BYTES_PER_PIXEL * (pos.y + y)] = draw_data.bytes[i];
+            for (0..scale_factor) |scale_j| {
+                for (0..scale_factor) |scale_i| {
+                    const x = i % (draw_data.width * BYTES_PER_PIXEL);
+                    const y = i / (draw_data.width * BYTES_PER_PIXEL);
+                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j)] = draw_data.bytes[i];
+                }
+            }
         }
     }
 };
@@ -267,7 +271,7 @@ pub fn main() !void {
     while (running) {
         // TODO - clear screen
         // TODO - draw entities
-        surface.draw(char_map.drawData(getCharImageDataIndex('!')), .{ .x = 0, .y = 0 });
+        surface.draw(char_map.drawData(getCharImageDataIndex('J')), .{ .x = 0, .y = 0 }, 5);
 
         updateScreen(window);
 
