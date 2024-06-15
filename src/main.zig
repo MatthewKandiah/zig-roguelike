@@ -6,6 +6,58 @@ const stb = @cImport({
     @cInclude("stb_image.h");
 });
 
+pub fn main() !void {
+    sdlInit();
+    const window = createWindow("zig-roguelike", 800, 600);
+    checkPixelFormat(window);
+    var surface = Surface.from_sdl_window(window);
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+
+    var input_width: c_int = undefined;
+    var input_height: c_int = undefined;
+    var input_bytes_per_pixel: c_int = undefined;
+    var input_data: [*]u8 = undefined;
+    input_data = stb.stbi_load(@ptrCast("src/assets/charmap-oldschool-white.png"), &input_width, &input_height, &input_bytes_per_pixel, 0);
+
+    std.debug.print("input_width: {}\n", .{input_width});
+
+    const char_map = try CharMap.load(
+        input_data,
+        .{ .width = @as(usize, @abs(input_width)), .height = @as(usize, @abs(input_height)) },
+        @as(usize, @abs(input_bytes_per_pixel)),
+        .{ .width = 7, .height = 9 },
+        allocator,
+    );
+
+    var running = true;
+    var event: c.SDL_Event = undefined;
+    while (running) {
+        // TODO - clear screen
+        // TODO - draw entities
+        surface.draw(char_map.drawData(getCharImageDataIndex('J')), .{ .x = 0, .y = 0 }, 5);
+
+        updateScreen(window);
+
+        while (c.SDL_PollEvent(@ptrCast(&event)) != 0) {
+            if (event.type == c.SDL_QUIT) {
+                running = false;
+            }
+            if (event.type == c.SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                    c.SDLK_ESCAPE => running = false,
+                    else => {},
+                }
+            }
+            if (event.type == c.SDL_WINDOWEVENT) {
+                checkPixelFormat(window);
+                surface.update(window);
+            }
+        }
+    }
+}
+
 const BYTES_PER_PIXEL = 4;
 
 pub const Position = struct { x: usize, y: usize };
@@ -49,7 +101,6 @@ pub const CharMap = struct {
 
     const Self = @This();
 
-    // TODO - verify this is working as expected, I'm getting garbled output at the minute
     // TODO - our font asset is tiny, could its data be baked in at compile time?
     pub fn load(input_data: [*]u8, image_dim: Dimensions, input_bytes_per_pixel: usize, char_dim: Dimensions, allocator: std.mem.Allocator) !Self {
         std.debug.print("image_dim: {any}\n", .{image_dim});
@@ -72,6 +123,7 @@ pub const CharMap = struct {
                 }
             }
         }
+
         return Self{
             .data = output_data,
             .dim = image_dim,
@@ -86,6 +138,49 @@ pub const CharMap = struct {
             .bytes = self.data[start_index .. start_index + byte_count],
             .width = self.char_dim.width,
         };
+    }
+};
+
+const DrawData = struct {
+    bytes: []u8,
+    width: usize,
+};
+
+const Surface = struct {
+    pixels: [*]u8,
+    width: usize,
+    height: usize,
+
+    const Self = @This();
+
+    fn from_sdl_window(window: *c.struct_SDL_Window) Self {
+        const surface: *c.struct_SDL_Surface = c.SDL_GetWindowSurface(window) orelse sdlPanic();
+        const pixels: [*]u8 = @ptrCast(surface.pixels orelse @panic("SDL surface has not allocated pixels"));
+        return Self{
+            .pixels = pixels,
+            .width = @intCast(surface.w),
+            .height = @intCast(surface.h),
+        };
+    }
+
+    fn update(self: *Self, window: *c.struct_SDL_Window) void {
+        const surface: *c.struct_SDL_Surface = c.SDL_GetWindowSurface(window) orelse sdlPanic();
+        const pixels: [*]u8 = @ptrCast(surface.pixels orelse @panic("SDL surface has not allocated pixels"));
+        self.pixels = pixels;
+        self.width = @intCast(surface.w);
+        self.height = @intCast(surface.h);
+    }
+
+    fn draw(self: Self, draw_data: DrawData, pos: Position, scale_factor: usize) void {
+        for (0..draw_data.bytes.len) |i| {
+            for (0..scale_factor) |scale_j| {
+                for (0..scale_factor) |scale_i| {
+                    const x = i % (draw_data.width * BYTES_PER_PIXEL);
+                    const y = i / (draw_data.width * BYTES_PER_PIXEL);
+                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j)] = draw_data.bytes[i];
+                }
+            }
+        }
     }
 };
 
@@ -188,109 +283,6 @@ pub fn getCharImageDataIndex(char: u8) usize {
         '~' => 94,
         else => std.debug.panic("Illegal character {c} for current font", .{char}),
     };
-}
-
-const Surface = struct {
-    pixels: [*]u8,
-    width: usize,
-    height: usize,
-
-    const Self = @This();
-
-    fn from_sdl_window(window: *c.struct_SDL_Window) Self {
-        const surface: *c.struct_SDL_Surface = c.SDL_GetWindowSurface(window) orelse sdlPanic();
-        const pixels: [*]u8 = @ptrCast(surface.pixels orelse @panic("SDL surface has not allocated pixels"));
-        return Self{
-            .pixels = pixels,
-            .width = @intCast(surface.w),
-            .height = @intCast(surface.h),
-        };
-    }
-
-    fn update(self: *Self, window: *c.struct_SDL_Window) void {
-        const surface: *c.struct_SDL_Surface = c.SDL_GetWindowSurface(window) orelse sdlPanic();
-        const pixels: [*]u8 = @ptrCast(surface.pixels orelse @panic("SDL surface has not allocated pixels"));
-        self.pixels = pixels;
-        self.width = @intCast(surface.w);
-        self.height = @intCast(surface.h);
-    }
-
-    fn draw(self: Self, draw_data: DrawData, pos: Position, scale_factor: usize) void {
-        for (0..draw_data.bytes.len) |i| {
-            for (0..scale_factor) |scale_j| {
-                for (0..scale_factor) |scale_i| {
-                    const x = i % (draw_data.width * BYTES_PER_PIXEL);
-                    const y = i / (draw_data.width * BYTES_PER_PIXEL);
-                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j)] = draw_data.bytes[i];
-                }
-            }
-        }
-    }
-};
-
-const DrawData = struct {
-    bytes: []u8,
-    width: usize,
-};
-
-pub const TiledRectangle = struct {
-    char_map: CharMap,
-    pixel_position: Position,
-    pixel_width: usize,
-    pixel_height: usize,
-    scale_factor: usize,
-};
-
-pub fn main() !void {
-    sdlInit();
-    const window = createWindow("zig-roguelike", 800, 600);
-    checkPixelFormat(window);
-    var surface = Surface.from_sdl_window(window);
-
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var input_width: c_int = undefined;
-    var input_height: c_int = undefined;
-    var input_bytes_per_pixel: c_int = undefined;
-    var input_data: [*]u8 = undefined;
-    input_data = stb.stbi_load(@ptrCast("src/assets/charmap-oldschool-white.png"), &input_width, &input_height, &input_bytes_per_pixel, 0);
-
-    std.debug.print("input_width: {}\n", .{input_width});
-
-    const char_map = try CharMap.load(
-        input_data,
-        .{ .width = @as(usize, @abs(input_width)), .height = @as(usize, @abs(input_height)) },
-        @as(usize, @abs(input_bytes_per_pixel)),
-        .{ .width = 7, .height = 9 },
-        allocator,
-    );
-
-    var running = true;
-    var event: c.SDL_Event = undefined;
-    while (running) {
-        // TODO - clear screen
-        // TODO - draw entities
-        surface.draw(char_map.drawData(getCharImageDataIndex('J')), .{ .x = 0, .y = 0 }, 5);
-
-        updateScreen(window);
-
-        while (c.SDL_PollEvent(@ptrCast(&event)) != 0) {
-            if (event.type == c.SDL_QUIT) {
-                running = false;
-            }
-            if (event.type == c.SDL_KEYDOWN) {
-                switch (event.key.keysym.sym) {
-                    c.SDLK_ESCAPE => running = false,
-                    else => {},
-                }
-            }
-            if (event.type == c.SDL_WINDOWEVENT) {
-                checkPixelFormat(window);
-                surface.update(window);
-            }
-        }
-    }
 }
 
 fn updateScreen(window: *c.struct_SDL_Window) void {
