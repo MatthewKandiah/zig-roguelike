@@ -8,7 +8,7 @@ const stb = @cImport({
 
 pub fn main() !void {
     sdlInit();
-    const window = createWindow("zig-roguelike", 30, 30);
+    const window = createWindow("zig-roguelike", 300, 300);
     checkPixelFormat(window);
     var surface = Surface.from_sdl_window(window);
 
@@ -34,8 +34,14 @@ pub fn main() !void {
     while (running) {
         // TODO - clear screen
         // TODO - draw entities
-        const scale_factor = 2;
-        surface.draw(char_map.drawData(getCharImageDataIndex('J')), .{ .x = 0, .y = 0 }, scale_factor);
+        const scale_factor = 5;
+        const image_data_index = getCharImageDataIndex('J');
+        const char_draw_data = char_map.drawData(image_data_index);
+        surface.draw(
+            char_draw_data,
+            .{ .x = 0, .y = 0 },
+            scale_factor,
+        );
 
         updateScreen(window);
 
@@ -110,19 +116,17 @@ pub const CharMap = struct {
                 for (0..char_dim.height) |pixel_j| {
                     for (0..char_dim.width) |pixel_i| {
                         // TODO - should these be reordered from bgrx to xrgb?
-                        // std.debug.print("tile_i: {}, tile_j: {}\n", .{ tile_i, tile_j });
                         const pixel_index: usize = tile_i * char_dim.width + pixel_i + image_dim.width * (tile_j * char_dim.height + pixel_j);
-                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 0]; // b
-                        // std.debug.print("b: {}, ", .{output_data[output_index]});
+                        if (input_bytes_per_pixel != 3) {
+                            @panic("Input image using more than 3 channels, not supported yet");
+                        }
+                        output_data[output_index] = 0; // x
+                        output_index += 1;
+                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 0]; // r
                         output_index += 1;
                         output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 1]; // g
-                        // std.debug.print("g: {}, ", .{output_data[output_index]});
                         output_index += 1;
-                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 2]; // r
-                        // std.debug.print("r: {}, ", .{output_data[output_index]});
-                        output_index += 1;
-                        output_data[output_index] = if (input_bytes_per_pixel == 4) input_data[input_bytes_per_pixel * pixel_index + 3] else 0; // x
-                        // std.debug.print("x: {}\n", .{output_data[output_index]});
+                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 2]; // b
                         output_index += 1;
                     }
                 }
@@ -176,14 +180,14 @@ const Surface = struct {
         self.height = @intCast(surface.h);
     }
 
-    // TODO - works fine for scale_factor == 1, but gets a gap for scale_factor > 1
+    // TODO - works fine for scale_factor == 1, but gets a gap for scale_factor > 1, or is gap just too small to see?
     fn draw(self: Self, draw_data: DrawData, pos: Position, scale_factor: usize) void {
-        for (0..draw_data.bytes.len) |pixel_idx| {
+        for (0..draw_data.bytes.len) |byte_index| {
             for (0..scale_factor) |scale_j| {
                 for (0..scale_factor) |scale_i| {
-                    const x = pixel_idx % (draw_data.width * BYTES_PER_PIXEL);
-                    const y = pixel_idx / (draw_data.width * BYTES_PER_PIXEL);
-                    self.pixels[pos.x + (x * scale_factor) + scale_i + (self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j))] = draw_data.bytes[pixel_idx];
+                    const x = byte_index % (draw_data.width * BYTES_PER_PIXEL);
+                    const y = byte_index / (draw_data.width * BYTES_PER_PIXEL);
+                    self.pixels[pos.x + (x * scale_factor) + scale_i + (self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j))] = draw_data.bytes[byte_index];
                 }
             }
         }
