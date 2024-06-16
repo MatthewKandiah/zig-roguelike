@@ -34,8 +34,9 @@ pub fn main() !void {
     while (running) {
         // TODO - clear screen
         // TODO - draw entities
-        surface.draw(char_map.drawData(getCharImageDataIndex('J')), .{ .x = 0, .y = 0 }, 8);
-        surface.drawColoured(char_map.drawData(getCharImageDataIndex('@')), .{ .x = 0, .y = 80 }, 8, Colour.red);
+        const scale_factor = 8;
+        surface.draw(char_map.drawData(getCharImageDataIndex('J')), .{ .x = 0, .y = 0 }, scale_factor);
+        surface.drawColoured(char_map.drawData(getCharImageDataIndex('@')), .{ .x = 0, .y = 80 }, scale_factor, Colour.white);
 
         updateScreen(window);
 
@@ -172,10 +173,10 @@ const Surface = struct {
     fn draw(self: Self, draw_data: DrawData, pos: Position, scale_factor: usize) void {
         for (0..draw_data.bytes.len) |pixel_idx| {
             for (0..scale_factor) |scale_j| {
-                for (0..scale_factor) |scale_i| {
+                for (0..scale_factor + 1) |scale_i| {
                     const x = pixel_idx % (draw_data.width * BYTES_PER_PIXEL);
                     const y = pixel_idx / (draw_data.width * BYTES_PER_PIXEL);
-                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j) + 0] = draw_data.bytes[pixel_idx];
+                    self.pixels[pos.x + (x * scale_factor) + scale_i + (self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j))] = draw_data.bytes[pixel_idx];
                 }
             }
         }
