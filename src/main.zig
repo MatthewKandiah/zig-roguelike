@@ -8,7 +8,7 @@ const stb = @cImport({
 
 pub fn main() !void {
     sdlInit();
-    const window = createWindow("zig-roguelike", 800, 600);
+    const window = createWindow("zig-roguelike", 30, 30);
     checkPixelFormat(window);
     var surface = Surface.from_sdl_window(window);
 
@@ -34,9 +34,8 @@ pub fn main() !void {
     while (running) {
         // TODO - clear screen
         // TODO - draw entities
-        const scale_factor = 8;
+        const scale_factor = 2;
         surface.draw(char_map.drawData(getCharImageDataIndex('J')), .{ .x = 0, .y = 0 }, scale_factor);
-        surface.drawColoured(char_map.drawData(getCharImageDataIndex('@')), .{ .x = 0, .y = 80 }, scale_factor, Colour.white);
 
         updateScreen(window);
 
@@ -105,18 +104,25 @@ pub const CharMap = struct {
     pub fn load(input_data: [*]u8, image_dim: Dimensions, input_bytes_per_pixel: usize, char_dim: Dimensions, allocator: std.mem.Allocator) !Self {
         var output_data = try allocator.alloc(u8, image_dim.area() * BYTES_PER_PIXEL);
         var output_index: usize = 0;
+        std.debug.print("tile_count_x: {}, tile_count_y: {}\n", .{ image_dim.height / char_dim.height, image_dim.width / char_dim.width });
         for (0..image_dim.height / char_dim.height) |tile_j| {
             for (0..image_dim.width / char_dim.width) |tile_i| {
                 for (0..char_dim.height) |pixel_j| {
                     for (0..char_dim.width) |pixel_i| {
+                        // TODO - should these be reordered from bgrx to xrgb?
+                        // std.debug.print("tile_i: {}, tile_j: {}\n", .{ tile_i, tile_j });
                         const pixel_index: usize = tile_i * char_dim.width + pixel_i + image_dim.width * (tile_j * char_dim.height + pixel_j);
                         output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 0]; // b
+                        // std.debug.print("b: {}, ", .{output_data[output_index]});
                         output_index += 1;
                         output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 1]; // g
+                        // std.debug.print("g: {}, ", .{output_data[output_index]});
                         output_index += 1;
                         output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 2]; // r
+                        // std.debug.print("r: {}, ", .{output_data[output_index]});
                         output_index += 1;
                         output_data[output_index] = if (input_bytes_per_pixel == 4) input_data[input_bytes_per_pixel * pixel_index + 3] else 0; // x
+                        // std.debug.print("x: {}\n", .{output_data[output_index]});
                         output_index += 1;
                     }
                 }
@@ -170,29 +176,14 @@ const Surface = struct {
         self.height = @intCast(surface.h);
     }
 
+    // TODO - works fine for scale_factor == 1, but gets a gap for scale_factor > 1
     fn draw(self: Self, draw_data: DrawData, pos: Position, scale_factor: usize) void {
         for (0..draw_data.bytes.len) |pixel_idx| {
             for (0..scale_factor) |scale_j| {
-                for (0..scale_factor + 1) |scale_i| {
+                for (0..scale_factor) |scale_i| {
                     const x = pixel_idx % (draw_data.width * BYTES_PER_PIXEL);
                     const y = pixel_idx / (draw_data.width * BYTES_PER_PIXEL);
                     self.pixels[pos.x + (x * scale_factor) + scale_i + (self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j))] = draw_data.bytes[pixel_idx];
-                }
-            }
-        }
-    }
-
-    fn drawColoured(self: Self, draw_data: DrawData, pos: Position, scale_factor: usize, colour: Colour) void {
-        for (0..draw_data.bytes.len / BYTES_PER_PIXEL) |pixel_idx| {
-            for (0..scale_factor) |scale_j| {
-                for (0..scale_factor) |scale_i| {
-                    const x = pixel_idx * BYTES_PER_PIXEL % (draw_data.width * BYTES_PER_PIXEL);
-                    const y = pixel_idx * BYTES_PER_PIXEL / (draw_data.width * BYTES_PER_PIXEL);
-                    const should_draw = draw_data.bytes[pixel_idx * BYTES_PER_PIXEL] != 0 or draw_data.bytes[pixel_idx * BYTES_PER_PIXEL + 1] != 0 or draw_data.bytes[pixel_idx * BYTES_PER_PIXEL + 2] != 0;
-                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j) + 0] = if (should_draw) colour.b else 0;
-                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j) + 1] = if (should_draw) colour.g else 0;
-                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j) + 2] = if (should_draw) colour.r else 0;
-                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j) + 3] = 0;
                 }
             }
         }
