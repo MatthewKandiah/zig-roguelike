@@ -21,8 +21,6 @@ pub fn main() !void {
     var input_data: [*]u8 = undefined;
     input_data = stb.stbi_load(@ptrCast("src/assets/charmap-oldschool-white.png"), &input_width, &input_height, &input_bytes_per_pixel, 0);
 
-    std.debug.print("input_width: {}\n", .{input_width});
-
     const char_map = try CharMap.load(
         input_data,
         .{ .width = @as(usize, @abs(input_width)), .height = @as(usize, @abs(input_height)) },
@@ -36,7 +34,8 @@ pub fn main() !void {
     while (running) {
         // TODO - clear screen
         // TODO - draw entities
-        surface.draw(char_map.drawData(getCharImageDataIndex('J')), .{ .x = 0, .y = 0 }, 5);
+        surface.draw(char_map.drawData(getCharImageDataIndex('J')), .{ .x = 0, .y = 0 }, 8);
+        surface.drawColoured(char_map.drawData(getCharImageDataIndex('@')), .{ .x = 0, .y = 80 }, 8, Colour.red);
 
         updateScreen(window);
 
@@ -103,7 +102,6 @@ pub const CharMap = struct {
 
     // TODO - our font asset is tiny, could its data be baked in at compile time?
     pub fn load(input_data: [*]u8, image_dim: Dimensions, input_bytes_per_pixel: usize, char_dim: Dimensions, allocator: std.mem.Allocator) !Self {
-        std.debug.print("image_dim: {any}\n", .{image_dim});
         var output_data = try allocator.alloc(u8, image_dim.area() * BYTES_PER_PIXEL);
         var output_index: usize = 0;
         for (0..image_dim.height / char_dim.height) |tile_j| {
@@ -111,13 +109,13 @@ pub const CharMap = struct {
                 for (0..char_dim.height) |pixel_j| {
                     for (0..char_dim.width) |pixel_i| {
                         const pixel_index: usize = tile_i * char_dim.width + pixel_i + image_dim.width * (tile_j * char_dim.height + pixel_j);
-                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 0];
+                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 0]; // b
                         output_index += 1;
-                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 1];
+                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 1]; // g
                         output_index += 1;
-                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 2];
+                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 2]; // r
                         output_index += 1;
-                        output_data[output_index] = if (input_bytes_per_pixel == 4) input_data[input_bytes_per_pixel * pixel_index + 3] else 0;
+                        output_data[output_index] = if (input_bytes_per_pixel == 4) input_data[input_bytes_per_pixel * pixel_index + 3] else 0; // x
                         output_index += 1;
                     }
                 }
@@ -172,12 +170,28 @@ const Surface = struct {
     }
 
     fn draw(self: Self, draw_data: DrawData, pos: Position, scale_factor: usize) void {
-        for (0..draw_data.bytes.len) |i| {
+        for (0..draw_data.bytes.len) |pixel_idx| {
             for (0..scale_factor) |scale_j| {
                 for (0..scale_factor) |scale_i| {
-                    const x = i % (draw_data.width * BYTES_PER_PIXEL);
-                    const y = i / (draw_data.width * BYTES_PER_PIXEL);
-                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j)] = draw_data.bytes[i];
+                    const x = pixel_idx % (draw_data.width * BYTES_PER_PIXEL);
+                    const y = pixel_idx / (draw_data.width * BYTES_PER_PIXEL);
+                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j) + 0] = draw_data.bytes[pixel_idx];
+                }
+            }
+        }
+    }
+
+    fn drawColoured(self: Self, draw_data: DrawData, pos: Position, scale_factor: usize, colour: Colour) void {
+        for (0..draw_data.bytes.len / BYTES_PER_PIXEL) |pixel_idx| {
+            for (0..scale_factor) |scale_j| {
+                for (0..scale_factor) |scale_i| {
+                    const x = pixel_idx * BYTES_PER_PIXEL % (draw_data.width * BYTES_PER_PIXEL);
+                    const y = pixel_idx * BYTES_PER_PIXEL / (draw_data.width * BYTES_PER_PIXEL);
+                    const should_draw = draw_data.bytes[pixel_idx * BYTES_PER_PIXEL] != 0 or draw_data.bytes[pixel_idx * BYTES_PER_PIXEL + 1] != 0 or draw_data.bytes[pixel_idx * BYTES_PER_PIXEL + 2] != 0;
+                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j) + 0] = if (should_draw) colour.b else 0;
+                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j) + 1] = if (should_draw) colour.g else 0;
+                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j) + 2] = if (should_draw) colour.r else 0;
+                    self.pixels[pos.x + (x * scale_factor) + scale_i + self.width * BYTES_PER_PIXEL * (pos.y + (y * scale_factor) + scale_j) + 3] = 0;
                 }
             }
         }
