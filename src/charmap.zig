@@ -3,10 +3,6 @@ const Dimensions = @import("types.zig").Dimensions;
 const DrawData = @import("types.zig").DrawData;
 const BYTES_PER_PIXEL = @import("main.zig").BYTES_PER_PIXEL;
 
-pub const LoadError = error{
-    CharDimIncompatible,
-};
-
 pub const CharMap = struct {
     data: []u8,
     dim: Dimensions,
@@ -16,9 +12,6 @@ pub const CharMap = struct {
 
     // TODO - our font asset is tiny, could its data be baked in at compile time?
     pub fn load(input_data: [*]u8, image_dim: Dimensions, input_bytes_per_pixel: usize, char_dim: Dimensions, allocator: std.mem.Allocator) !Self {
-        if (image_dim.width % char_dim.width != 0 or image_dim.height % char_dim.height != 0) {
-            return LoadError.CharDimIncompatible;
-        }
         var output_data = try allocator.alloc(u8, image_dim.area() * BYTES_PER_PIXEL);
         var output_index: usize = 0;
         for (0..image_dim.height / char_dim.height) |tile_j| {
@@ -101,7 +94,7 @@ test "load XRGB data from 3-channel RGB image data when character dimensions fit
     }
 }
 
-test "returns error if character dimensions incompatible with image dimensions" {
+test "load XRGB data from 3-channel RGB image data when character dimensions do not fit input perfectly" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     const image_width = 100;
@@ -110,7 +103,7 @@ test "returns error if character dimensions incompatible with image dimensions" 
     const r = 100;
     const g = 200;
     const b = 50;
-    const char_width = 6;
+    const char_width = 7;
     const char_height = 6;
     try std.testing.expect(image_width % char_width != 0);
     try std.testing.expect(image_height % char_height != 0);
@@ -118,12 +111,26 @@ test "returns error if character dimensions incompatible with image dimensions" 
     const data_builder = PngDataBuilder.init(&buffer, .{ .width = image_width, .height = image_height }, bytes_per_pixel).fill(.{ .r = r, .g = g, .b = b });
     data_builder.generate_snapshot(TestConstants.SNAPSHOT_DIR ++ "load_XRGB_from_RGB_data_simple.png");
 
-    const result = CharMap.load(
+    const char_map = try CharMap.load(
         @ptrCast(data_builder.data),
         .{ .width = image_width, .height = image_height },
         bytes_per_pixel,
         .{ .width = char_width, .height = char_height },
         allocator,
     );
-    try std.testing.expectError(LoadError.CharDimIncompatible, result);
+
+    // this size is wrong if it's only reading in the pixels for the tiles
+    // a border on the right and bottom won't be read in
+    // in debug builds this shows up as a bunch of 0xAA bytes at the end of the buffer
+    for (0..image_width * image_height * bytes_per_pixel) |i| {
+        const expected: u8 = switch (i % 4) {
+            0 => 0,
+            1 => r,
+            2 => g,
+            3 => b,
+            else => unreachable,
+        };
+        errdefer std.debug.print("Test failed: i = {}\n", .{i});
+        try std.testing.expectEqual(expected, char_map.data[i]);
+    }
 }
