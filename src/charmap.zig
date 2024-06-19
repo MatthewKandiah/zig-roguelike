@@ -62,13 +62,19 @@ test "load XRGB data from 3-channel RGB image data" {
     const width = 100;
     const height = 10;
     const bytes_per_pixel = 3;
+    const r = 100;
+    const g = 200;
+    const b = 50;
     var buffer: [width * height * bytes_per_pixel]u8 = undefined;
-    const data_builder = PngDataBuilder.init(&buffer, .{ .width = width, .height = height }, bytes_per_pixel).fill(.{ .b = 255 }).horizontal(5, .{ .r = 255 }).vertical(50, .{ .g = 255 });
+    const data_builder = PngDataBuilder.init(&buffer, .{ .width = width, .height = height }, bytes_per_pixel).fill(.{ .r = r, .g = g, .b = b });
     data_builder.generate_snapshot(TestConstants.SNAPSHOT_DIR ++ "load_XRGB_from_RGB_data.png");
 
     const char_map = try CharMap.load(@ptrCast(data_builder.data), .{ .width = width, .height = height }, bytes_per_pixel, .{ .width = 5, .height = 6 }, allocator);
 
     try std.testing.expectEqual(5, char_map.char_dim.width);
     try std.testing.expectEqual(6, char_map.char_dim.height);
-    // TODO - assert on the data to check it's properly formed
+    try std.testing.expectEqual(0, char_map.data[0]);
+    try std.testing.expectEqual(r, char_map.data[1]);
+    try std.testing.expectEqual(g, char_map.data[2]);
+    try std.testing.expectEqual(b, char_map.data[3]);
 }
