@@ -48,11 +48,3 @@ pub const Surface = struct {
         }
     }
 };
-
-test "should pass" {
-    try std.testing.expect(true);
-}
-
-test "should fail" {
-    try std.testing.expect(false);
-}

@@ -14,7 +14,6 @@ pub const CharMap = struct {
     pub fn load(input_data: [*]u8, image_dim: Dimensions, input_bytes_per_pixel: usize, char_dim: Dimensions, allocator: std.mem.Allocator) !Self {
         var output_data = try allocator.alloc(u8, image_dim.area() * BYTES_PER_PIXEL);
         var output_index: usize = 0;
-        std.debug.print("tile_count_x: {}, tile_count_y: {}\n", .{ image_dim.height / char_dim.height, image_dim.width / char_dim.width });
         for (0..image_dim.height / char_dim.height) |tile_j| {
             for (0..image_dim.width / char_dim.width) |tile_i| {
                 for (0..char_dim.height) |pixel_j| {
@@ -53,3 +52,23 @@ pub const CharMap = struct {
         };
     }
 };
+
+const PngDataBuilder = @import("test-util/png-data-builder.zig").PngDataBuilder;
+const TestConstants = @import("test-util/constants.zig");
+
+test "should correctly load pixel data in XRGB format from 3-channel RGB image data" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    const width = 100;
+    const height = 10;
+    const bytes_per_pixel = 3;
+    var buffer: [width * height * bytes_per_pixel]u8 = undefined;
+    const data_builder = PngDataBuilder.init(&buffer, .{ .width = width, .height = height }, bytes_per_pixel).fill(.{ .b = 255 }).horizontal(5, .{ .r = 255 }).vertical(50, .{ .g = 255 });
+    data_builder.generate_snapshot(TestConstants.SNAPSHOT_DIR ++ "blue_with_lines.png");
+
+    const char_map = try CharMap.load(@ptrCast(data_builder.data), .{ .width = width, .height = height }, bytes_per_pixel, .{ .width = 5, .height = 6 }, allocator);
+
+    try std.testing.expectEqual(5, char_map.char_dim.width);
+    try std.testing.expectEqual(6, char_map.char_dim.height);
+    // TODO - assert on the data to check it's properly formed
+}

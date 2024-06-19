@@ -41,11 +41,11 @@ pub const PngDataBuilder = struct {
         return self;
     }
 
-    pub fn horizontal(self: Self, row: usize, colour: struct { r: usize = 0, g: usize = 0, b: usize = 0, a: usize = 0 }) Self {
+    pub fn horizontal(self: Self, row: usize, colour: struct { r: u8 = 0, g: u8 = 0, b: u8 = 0, a: u8 = 0 }) Self {
         if (row >= self.dim.height) {
             std.debug.panic("PdfDataBuilder horizontal specifies row {} out of bounds given dimensions {}", .{ row, self.dim });
         }
-        const row_start = row * self.bytes_per_pixel * self.width;
+        const row_start = row * self.bytes_per_pixel * self.dim.width;
         for (0..self.dim.width * self.bytes_per_pixel) |i| {
             if (i % self.bytes_per_pixel == 0) {
                 self.data[row_start + i] = colour.r;
@@ -60,13 +60,13 @@ pub const PngDataBuilder = struct {
         return self;
     }
 
-    pub fn vertical(self: Self, col: usize, colour: struct { r: usize = 0, g: usize = 0, b: usize = 0, a: usize = 0 }) Self {
+    pub fn vertical(self: Self, col: usize, colour: struct { r: u8 = 0, g: u8 = 0, b: u8 = 0, a: u8 = 0 }) Self {
         if (col >= self.dim.width) {
             std.debug.panic("PdfDataBuilder vertical specifies column {} out of bounds given dimensions {}", .{ col, self.dim });
         }
         const col_start = col * self.bytes_per_pixel;
-        for (0..self.height) |i| {
-            const idx = col_start + self.width * self.bytes_per_pixel * i;
+        for (0..self.dim.height) |i| {
+            const idx = col_start + self.dim.width * self.bytes_per_pixel * i;
             self.data[idx] = colour.r;
             if (self.bytes_per_pixel >= 2) self.data[idx + 1] = colour.g;
             if (self.bytes_per_pixel >= 3) self.data[idx + 2] = colour.b;
