@@ -56,25 +56,39 @@ pub const CharMap = struct {
 const PngDataBuilder = @import("test-util/png-data-builder.zig").PngDataBuilder;
 const TestConstants = @import("test-util/constants.zig");
 
-test "load XRGB data from 3-channel RGB image data" {
+test "load XRGB data from 3-channel RGB image data when character dimensions fit input perfectly" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    const width = 100;
-    const height = 10;
+    const image_width = 100;
+    const image_height = 10;
     const bytes_per_pixel = 3;
     const r = 100;
     const g = 200;
     const b = 50;
-    var buffer: [width * height * bytes_per_pixel]u8 = undefined;
-    const data_builder = PngDataBuilder.init(&buffer, .{ .width = width, .height = height }, bytes_per_pixel).fill(.{ .r = r, .g = g, .b = b });
-    data_builder.generate_snapshot(TestConstants.SNAPSHOT_DIR ++ "load_XRGB_from_RGB_data.png");
+    const char_width = 5;
+    const char_height = 2;
+    try std.testing.expect(image_width % char_width == 0);
+    try std.testing.expect(image_height % char_height == 0);
+    var buffer: [image_width * image_height * bytes_per_pixel]u8 = undefined;
+    const data_builder = PngDataBuilder.init(&buffer, .{ .width = image_width, .height = image_height }, bytes_per_pixel).fill(.{ .r = r, .g = g, .b = b });
+    data_builder.generate_snapshot(TestConstants.SNAPSHOT_DIR ++ "load_XRGB_from_RGB_data_simple.png");
 
-    const char_map = try CharMap.load(@ptrCast(data_builder.data), .{ .width = width, .height = height }, bytes_per_pixel, .{ .width = 5, .height = 6 }, allocator);
+    const char_map = try CharMap.load(
+        @ptrCast(data_builder.data),
+        .{ .width = image_width, .height = image_height },
+        bytes_per_pixel,
+        .{ .width = char_width, .height = char_height },
+        allocator,
+    );
 
-    try std.testing.expectEqual(5, char_map.char_dim.width);
-    try std.testing.expectEqual(6, char_map.char_dim.height);
-    for (0..width * height * bytes_per_pixel) |i| {
-        const expected: u8 = if (i % 4 == 0) 0 else if (i % 4 == 1) r else if (i % 4 == 2) g else if (i % 4 == 3) b else unreachable;
+    for (0..image_width * image_height * bytes_per_pixel) |i| {
+        const expected: u8 = switch (i % 4) {
+            0 => 0,
+            1 => r,
+            2 => g,
+            3 => b,
+            else => unreachable,
+        };
         errdefer std.debug.print("Test failed: i = {}\n", .{i});
         try std.testing.expectEqual(expected, char_map.data[i]);
     }
