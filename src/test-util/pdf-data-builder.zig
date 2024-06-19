@@ -2,7 +2,7 @@ const std = @import("std");
 const Dimensions = @import("../main.zig").Dimensions;
 const Colour = @import("../main.zig").Colour;
 
-const PdfDataBuilder = struct {
+export const PngDataBuilder = struct {
     data: []u8,
     dim: Dimensions,
     bytes_per_pixel: usize,
