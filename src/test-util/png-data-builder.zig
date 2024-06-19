@@ -1,15 +1,18 @@
 const std = @import("std");
-const Dimensions = @import("../main.zig").Dimensions;
-const Colour = @import("../main.zig").Colour;
+const stb = @cImport({
+    @cInclude("stb_image_write.h");
+});
+const Dimensions = @import("../types.zig").Dimensions;
+const Colour = @import("../types.zig").Colour;
 
-export const PngDataBuilder = struct {
+pub const PngDataBuilder = struct {
     data: []u8,
     dim: Dimensions,
     bytes_per_pixel: usize,
 
     const Self = @This();
 
-    fn init(buffer: []u8, dim: Dimensions, bytes_per_pixel: usize) Self {
+    pub fn init(buffer: []u8, dim: Dimensions, bytes_per_pixel: usize) Self {
         if (buffer.len % bytes_per_pixel != 0) {
             std.debug.panic("PdfDataBuilder buffer length {} is not a multiple of its bytes_per_pixel {}", .{ buffer.len, bytes_per_pixel });
         }
@@ -23,22 +26,22 @@ export const PngDataBuilder = struct {
         };
     }
 
-    fn fill(self: Self, colour: struct { r: usize = 0, g: usize = 0, b: usize = 0, a: usize = 0 }) Self {
+    pub fn fill(self: Self, colour: struct { r: u8 = 0, g: u8 = 0, b: u8 = 0, a: u8 = 0 }) Self {
         for (self.data, 0..) |*byte, i| {
             if (i % self.bytes_per_pixel == 0) {
-                byte = colour.r;
+                byte.* = colour.r;
             } else if (i % self.bytes_per_pixel == 1) {
-                byte = colour.g;
+                byte.* = colour.g;
             } else if (i % self.bytes_per_pixel == 2) {
-                byte = colour.b;
+                byte.* = colour.b;
             } else if (i % self.bytes_per_pixel == 3) {
-                byte = colour.a;
+                byte.* = colour.a;
             }
         }
         return self;
     }
 
-    fn horizontal(self: Self, row: usize, colour: struct { r: usize = 0, g: usize = 0, b: usize = 0, a: usize = 0 }) Self {
+    pub fn horizontal(self: Self, row: usize, colour: struct { r: usize = 0, g: usize = 0, b: usize = 0, a: usize = 0 }) Self {
         if (row >= self.dim.height) {
             std.debug.panic("PdfDataBuilder horizontal specifies row {} out of bounds given dimensions {}", .{ row, self.dim });
         }
@@ -57,7 +60,7 @@ export const PngDataBuilder = struct {
         return self;
     }
 
-    fn vertical(self: Self, col: usize, colour: struct { r: usize = 0, g: usize = 0, b: usize = 0, a: usize = 0 }) Self {
+    pub fn vertical(self: Self, col: usize, colour: struct { r: usize = 0, g: usize = 0, b: usize = 0, a: usize = 0 }) Self {
         if (col >= self.dim.width) {
             std.debug.panic("PdfDataBuilder vertical specifies column {} out of bounds given dimensions {}", .{ col, self.dim });
         }
@@ -70,5 +73,12 @@ export const PngDataBuilder = struct {
             if (self.bytes_per_pixel >= 4) self.data[idx + 3] = colour.a;
         }
         return self;
+    }
+
+    pub fn generate_snapshot(self: Self, path: []const u8) void {
+        const result = stb.stbi_write_png(@ptrCast(path), @intCast(self.dim.width), @intCast(self.dim.height), @intCast(self.bytes_per_pixel), @ptrCast(self.data.ptr), @intCast(self.dim.width * self.bytes_per_pixel));
+        if (result == 0) {
+            @panic("stb_image_write error: failed to generate snapshot image");
+        }
     }
 };
