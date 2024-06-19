@@ -37,6 +37,8 @@ pub fn main() !void {
         allocator,
     );
 
+    stb.stbi_image_free(input_data);
+
     var running = true;
     var event: c.SDL_Event = undefined;
     while (running) {
