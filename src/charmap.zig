@@ -75,6 +75,7 @@ test "load XRGB data from 3-channel RGB image data" {
     try std.testing.expectEqual(6, char_map.char_dim.height);
     for (0..width * height * bytes_per_pixel) |i| {
         const expected: u8 = if (i % 4 == 0) 0 else if (i % 4 == 1) r else if (i % 4 == 2) g else if (i % 4 == 3) b else unreachable;
+        errdefer std.debug.print("Test failed: i = {}\n", .{i});
         try std.testing.expectEqual(expected, char_map.data[i]);
     }
 }
