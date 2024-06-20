@@ -35,7 +35,9 @@ pub const Surface = struct {
         self.height = @intCast(surface.h);
     }
 
-    // TODO - works fine for scale_factor == 1, but gets a gap for scale_factor > 1, or is gap just too small to see?
+    // TODO - test
+    // looks like char map loading works as expected, so the bug must be in the drawing logic
+    // I think the bug only occurs for scale factor != 1, implies it's the scaling logic at fault
     pub fn draw(self: Self, draw_data: DrawData, pos: Position, scale_factor: usize) void {
         for (0..draw_data.bytes.len) |byte_index| {
             for (0..scale_factor) |scale_j| {

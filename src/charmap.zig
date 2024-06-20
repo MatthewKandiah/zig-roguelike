@@ -22,7 +22,6 @@ pub const CharMap = struct {
             for (0..char_count_x) |tile_i| {
                 for (0..char_dim.height) |pixel_j| {
                     for (0..char_dim.width) |pixel_i| {
-                        // TODO - should these be reordered from bgrx to xrgb?
                         const pixel_index: usize = tile_i * char_dim.width + pixel_i + image_dim.width * (tile_j * char_dim.height + pixel_j);
                         if (input_bytes_per_pixel != 3) {
                             @panic("Input image using more than 3 channels, not supported yet");
