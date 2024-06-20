@@ -74,7 +74,8 @@ test "load XRGB data from 3-channel RGB image data when character dimensions fit
     try std.testing.expect(image_width % char_width == 0);
     try std.testing.expect(image_height % char_height == 0);
     var buffer: [image_width * image_height * bytes_per_pixel]u8 = undefined;
-    const data_builder = PngDataBuilder.init(&buffer, .{ .width = image_width, .height = image_height }, bytes_per_pixel).fill(.{ .r = r, .g = g, .b = b });
+    const data_builder = PngDataBuilder.init(&buffer, .{ .width = image_width, .height = image_height }, bytes_per_pixel) //
+        .fill(.{ .r = r, .g = g, .b = b });
     data_builder.generate_snapshot(TestConstants.SNAPSHOT_DIR ++ "load_XRGB_from_RGB_data_simple.png");
 
     const char_map = try CharMap.load(
@@ -116,8 +117,9 @@ test "load XRGB data from 3-channel RGB image data when character dimensions do 
     try std.testing.expect(image_width % char_width != 0);
     try std.testing.expect(image_height % char_height != 0);
     var buffer: [input_byte_count]u8 = undefined;
-    const data_builder = PngDataBuilder.init(&buffer, .{ .width = image_width, .height = image_height }, bytes_per_pixel).fill(.{ .r = r, .g = g, .b = b });
-    data_builder.generate_snapshot(TestConstants.SNAPSHOT_DIR ++ "load_XRGB_from_RGB_data_simple.png");
+    const data_builder = PngDataBuilder.init(&buffer, .{ .width = image_width, .height = image_height }, bytes_per_pixel) //
+        .fill(.{ .r = r, .g = g, .b = b });
+    // no snapshot, same input data as last test
 
     const char_map = try CharMap.load(
         @ptrCast(data_builder.data),
@@ -134,6 +136,48 @@ test "load XRGB data from 3-channel RGB image data when character dimensions do 
             1 => r,
             2 => g,
             3 => b,
+            else => unreachable,
+        };
+        errdefer std.debug.print("Test failed: i = {}\n", .{i});
+        try std.testing.expectEqual(expected, char_map.data[i]);
+    }
+}
+
+test "reformat image data so each character is a contiguous block in memory" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    const image_width = 10;
+    const image_height = 12;
+    const bytes_per_pixel = 3;
+    const char_width = 5;
+    const char_height = 6;
+    const tile_count_x = 2;
+    const tile_count_y = 2;
+    const input_byte_count = image_width * image_height * bytes_per_pixel;
+    const expected_output_byte_count = tile_count_x * tile_count_y * char_width * char_height * BYTES_PER_PIXEL;
+    var buffer: [input_byte_count]u8 = undefined;
+    const data_builder = PngDataBuilder.init(&buffer, .{ .width = image_width, .height = image_height }, bytes_per_pixel) //
+        .fill(.{ .r = 255 }) //
+        .verticals(0, 5, .{ .g = 255 }) //
+        .horizontals(0, 6, .{ .b = 255 });
+    data_builder.generate_snapshot(TestConstants.SNAPSHOT_DIR ++ "load_characters_to_contiguous_blocks.png");
+
+    const char_map = try CharMap.load(
+        @ptrCast(data_builder.data),
+        .{ .width = image_width, .height = image_height },
+        bytes_per_pixel,
+        .{ .width = char_width, .height = char_height },
+        allocator,
+    );
+
+    try std.testing.expectEqual(expected_output_byte_count, char_map.data.len);
+    const output_bytes_per_char = char_width * char_height * BYTES_PER_PIXEL;
+    for (0..expected_output_byte_count) |i| {
+        const expected: u8 = switch (i % 4) {
+            0 => 0,
+            1 => if (i >= 3 * output_bytes_per_char) 255 else 0,
+            2 => if (i >= 2 * output_bytes_per_char and i < 3 * output_bytes_per_char) 255 else 0,
+            3 => if (i < 2 * output_bytes_per_char) 255 else 0,
             else => unreachable,
         };
         errdefer std.debug.print("Test failed: i = {}\n", .{i});

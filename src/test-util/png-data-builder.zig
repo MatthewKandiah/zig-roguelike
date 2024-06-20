@@ -12,6 +12,13 @@ pub const PngDataBuilder = struct {
 
     const Self = @This();
 
+    pub const PartialColour = struct {
+        r: u8 = 0,
+        g: u8 = 0,
+        b: u8 = 0,
+        a: u8 = 0,
+    };
+
     pub fn init(buffer: []u8, dim: Dimensions, bytes_per_pixel: usize) Self {
         if (buffer.len % bytes_per_pixel != 0) {
             std.debug.panic("PdfDataBuilder buffer length {} is not a multiple of its bytes_per_pixel {}", .{ buffer.len, bytes_per_pixel });
@@ -26,7 +33,7 @@ pub const PngDataBuilder = struct {
         };
     }
 
-    pub fn fill(self: Self, colour: struct { r: u8 = 0, g: u8 = 0, b: u8 = 0, a: u8 = 0 }) Self {
+    pub fn fill(self: Self, colour: PartialColour) Self {
         for (self.data, 0..) |*byte, i| {
             if (i % self.bytes_per_pixel == 0) {
                 byte.* = colour.r;
@@ -41,7 +48,7 @@ pub const PngDataBuilder = struct {
         return self;
     }
 
-    pub fn horizontal(self: Self, row: usize, colour: struct { r: u8 = 0, g: u8 = 0, b: u8 = 0, a: u8 = 0 }) Self {
+    pub fn horizontal(self: Self, row: usize, colour: PartialColour) Self {
         if (row >= self.dim.height) {
             std.debug.panic("PdfDataBuilder horizontal specifies row {} out of bounds given dimensions {}", .{ row, self.dim });
         }
@@ -60,7 +67,14 @@ pub const PngDataBuilder = struct {
         return self;
     }
 
-    pub fn vertical(self: Self, col: usize, colour: struct { r: u8 = 0, g: u8 = 0, b: u8 = 0, a: u8 = 0 }) Self {
+    pub fn horizontals(self: Self, row: usize, count: usize, colour: PartialColour) Self {
+        for (0..count) |i| {
+            _ = self.horizontal(row + i, colour);
+        }
+        return self;
+    }
+
+    pub fn vertical(self: Self, col: usize, colour: PartialColour) Self {
         if (col >= self.dim.width) {
             std.debug.panic("PdfDataBuilder vertical specifies column {} out of bounds given dimensions {}", .{ col, self.dim });
         }
@@ -71,6 +85,13 @@ pub const PngDataBuilder = struct {
             if (self.bytes_per_pixel >= 2) self.data[idx + 1] = colour.g;
             if (self.bytes_per_pixel >= 3) self.data[idx + 2] = colour.b;
             if (self.bytes_per_pixel >= 4) self.data[idx + 3] = colour.a;
+        }
+        return self;
+    }
+
+    pub fn verticals(self: Self, col: usize, count: usize, colour: PartialColour) Self {
+        for (0..count) |i| {
+            _ = self.vertical(col + i, colour);
         }
         return self;
     }
