@@ -12,10 +12,14 @@ pub const CharMap = struct {
 
     // TODO - our font asset is tiny, could its data be baked in at compile time?
     pub fn load(input_data: [*]u8, image_dim: Dimensions, input_bytes_per_pixel: usize, char_dim: Dimensions, allocator: std.mem.Allocator) !Self {
-        var output_data = try allocator.alloc(u8, image_dim.area() * BYTES_PER_PIXEL);
+        const char_count_x = image_dim.width / char_dim.width;
+        const char_count_y = image_dim.height / char_dim.height;
+        const pixels_per_char = char_dim.area();
+        const output_pixel_count = char_count_x * char_count_y * pixels_per_char * BYTES_PER_PIXEL;
+        var output_data = try allocator.alloc(u8, output_pixel_count);
         var output_index: usize = 0;
-        for (0..image_dim.height / char_dim.height) |tile_j| {
-            for (0..image_dim.width / char_dim.width) |tile_i| {
+        for (0..char_count_y) |tile_j| {
+            for (0..char_count_x) |tile_i| {
                 for (0..char_dim.height) |pixel_j| {
                     for (0..char_dim.width) |pixel_i| {
                         // TODO - should these be reordered from bgrx to xrgb?
@@ -105,9 +109,13 @@ test "load XRGB data from 3-channel RGB image data when character dimensions do 
     const b = 50;
     const char_width = 7;
     const char_height = 6;
+    const tile_count_x = 14;
+    const tile_count_y = 1;
+    const input_byte_count = image_width * image_height * bytes_per_pixel;
+    const expected_output_byte_count = tile_count_x * tile_count_y * char_width * char_height * BYTES_PER_PIXEL;
     try std.testing.expect(image_width % char_width != 0);
     try std.testing.expect(image_height % char_height != 0);
-    var buffer: [image_width * image_height * bytes_per_pixel]u8 = undefined;
+    var buffer: [input_byte_count]u8 = undefined;
     const data_builder = PngDataBuilder.init(&buffer, .{ .width = image_width, .height = image_height }, bytes_per_pixel).fill(.{ .r = r, .g = g, .b = b });
     data_builder.generate_snapshot(TestConstants.SNAPSHOT_DIR ++ "load_XRGB_from_RGB_data_simple.png");
 
@@ -119,10 +127,8 @@ test "load XRGB data from 3-channel RGB image data when character dimensions do 
         allocator,
     );
 
-    // this size is wrong if it's only reading in the pixels for the tiles
-    // a border on the right and bottom won't be read in
-    // in debug builds this shows up as a bunch of 0xAA bytes at the end of the buffer
-    for (0..image_width * image_height * bytes_per_pixel) |i| {
+    try std.testing.expectEqual(expected_output_byte_count, char_map.data.len);
+    for (0..expected_output_byte_count) |i| {
         const expected: u8 = switch (i % 4) {
             0 => 0,
             1 => r,
