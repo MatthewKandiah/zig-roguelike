@@ -60,7 +60,7 @@ pub const Surface = struct {
             } else {
                 pixels_drawn_on_this_line = 0;
                 scale_repeats_x = 0;
-                output_pixel_index += self.width - (draw_data.width * scale_factor);
+                output_pixel_index += self.width - (draw_data.width * scale_factor) + 1;
                 if (scale_repeats_y + 1 < scale_factor) {
                     scale_repeats_y += 1;
                     input_pixel_index = input_pixel_index + 1 - draw_data.width;
