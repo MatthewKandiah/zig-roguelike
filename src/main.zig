@@ -44,7 +44,7 @@ pub fn main() !void {
     while (running) {
         // TODO - clear screen
         // TODO - draw entities
-        const scale_factor = 5;
+        const scale_factor = 8;
         const image_data_index = getCharImageDataIndex('J');
         const char_draw_data = char_map.drawData(image_data_index);
         surface.draw(
