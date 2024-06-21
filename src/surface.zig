@@ -35,9 +35,6 @@ pub const Surface = struct {
         self.height = @intCast(surface.h);
     }
 
-    // TODO - test
-    // looks like char map loading works as expected, so the bug must be in the drawing logic
-    // I think the bug only occurs for scale factor != 1, implies it's the scaling logic at fault
     pub fn draw(self: Self, draw_data: DrawData, pos: Position, scale_factor: usize) void {
         for (0..draw_data.bytes.len) |byte_index| {
             for (0..scale_factor) |scale_j| {
@@ -50,3 +47,79 @@ pub const Surface = struct {
         }
     }
 };
+
+test "it should draw row with scale 1" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    const pixels = try allocator.alloc(u8, 4000);
+    for (pixels) |*p| {
+        p.* = 0;
+    }
+    const surface = Surface{
+        .pixels = @ptrCast(pixels),
+        .width = 100,
+        .height = 10,
+    };
+    var bytes: [400]u8 = undefined;
+    for (0..400) |i| {
+        bytes[i] = @intCast(i % 256);
+    }
+    const draw_data = DrawData{ .bytes = &bytes, .width = 100 };
+
+    surface.draw(draw_data, .{ .x = 0, .y = 0 }, 1);
+
+    for (0..4000) |i| {
+        const expected = if (i < 400) i % 256 else 0;
+        errdefer std.debug.print("Test failed in first loop: i = {}\n", .{i});
+        try std.testing.expectEqual(expected, surface.pixels[i]);
+    }
+
+    surface.draw(draw_data, .{ .x = 0, .y = 5 }, 1);
+
+    for (0..4000) |i| {
+        const expected = if (i < 400) i % 256 else if (i >= 2000 and i < 2400) (i - 2000) % 256 else 0;
+        errdefer std.debug.print("Test failed in second loop: i = {}\n", .{i});
+        try std.testing.expectEqual(expected, surface.pixels[i]);
+    }
+}
+
+test "it should draw block with scale 1" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    const pixels = try allocator.alloc(u8, 4000);
+    for (pixels) |*p| {
+        p.* = 0;
+    }
+    const surface = Surface{
+        .pixels = @ptrCast(pixels),
+        .width = 100,
+        .height = 10,
+    };
+    var bytes: [400]u8 = undefined;
+    for (0..400) |i| {
+        bytes[i] = @intCast(i % 256);
+    }
+    const draw_data = DrawData{ .bytes = &bytes, .width = 10 };
+
+    surface.draw(draw_data, .{ .x = 0, .y = 0 }, 1);
+
+    var seen: usize = 0;
+    for (0..4000) |i| {
+        var expected: usize = 0;
+        if (i < 40 //
+        or (i >= 400 and i < 440) //
+        or (i >= 800 and i < 840) //
+        or (i >= 1200 and i < 1240) //
+        or (i >= 1600 and i < 1640) //
+        or (i >= 2000 and i < 2040) //
+        or (i >= 2400 and i < 2440) //
+        or (i >= 2800 and i < 2840) //
+        or (i >= 3200 and i < 3240) //
+        or (i >= 3600 and i < 3640)) {
+            expected = seen % 256;
+            seen += 1;
+        }
+        errdefer std.debug.print("Test failed: i = {}\n", .{i});
+        try std.testing.expectEqual(expected, surface.pixels[i]);
+    }
+}
