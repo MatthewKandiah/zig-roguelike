@@ -10,7 +10,8 @@ const getCharImageDataIndex = @import("main.zig").getCharImageDataIndex;
 const DrawData = @import("types.zig").DrawData;
 const Position = @import("types.zig").Position;
 const Dimensions = @import("types.zig").Dimensions;
-const CharGrid = @import("types.zig").CharGrid;
+const TileGrid = @import("types.zig").TileGrid;
+const Tile = @import("types.zig").Tile;
 const CharMap = @import("charmap.zig").CharMap;
 const BYTES_PER_PIXEL = @import("main.zig").BYTES_PER_PIXEL;
 
@@ -82,11 +83,11 @@ pub const Surface = struct {
         }
     }
 
-    pub fn drawGrid(self: Self, pos: Position, char_map: CharMap, char_grid: CharGrid, scale_factor: usize) void {
-        for (0..char_grid.dim.height) |j| {
-            for (0..char_grid.dim.width) |i| {
+    pub fn drawGrid(self: Self, pos: Position, char_map: CharMap, tile_grid: TileGrid, scale_factor: usize) void {
+        for (0..tile_grid.dim.height) |j| {
+            for (0..tile_grid.dim.width) |i| {
                 const current_tile_pos = Position{ .x = i, .y = j };
-                const char_index = getCharImageDataIndex(char_grid.get(current_tile_pos));
+                const char_index = getCharImageDataIndex(tile_grid.get(current_tile_pos).toU8());
                 const draw_data = char_map.drawData(char_index);
                 const current_pixel_pos = Position{
                     .x = pos.x + (i * char_map.char_dim.width * scale_factor),
@@ -95,5 +96,15 @@ pub const Surface = struct {
                 self.draw(draw_data, current_pixel_pos, scale_factor);
             }
         }
+    }
+
+    pub fn drawTile(self: Self, char: u8, grid_offset: Position, tile_pos: Position, char_map: CharMap, scale_factor: usize) void {
+        const char_index = getCharImageDataIndex(char);
+        const draw_data = char_map.drawData(char_index);
+        const pixel_pos = Position{
+            .x = grid_offset.x + (tile_pos.x * char_map.char_dim.width * scale_factor),
+            .y = grid_offset.y + (tile_pos.y * char_map.char_dim.height * scale_factor),
+        };
+        self.draw(draw_data, pixel_pos, scale_factor);
     }
 };

@@ -37,13 +37,27 @@ pub const Colour = struct {
     pub const yellow = Self{ .r = 255, .g = 255, .b = 0 };
 };
 
-pub const CharGrid = struct {
-    chars: []const u8,
+pub const TileGrid = struct {
+    tiles: []const Tile,
     dim: Dimensions,
 
     const Self = @This();
 
-    pub fn get(self: Self, pos: Position) u8 {
-        return self.chars[pos.x + self.dim.width * pos.y];
+    pub fn get(self: Self, pos: Position) Tile {
+        return self.tiles[pos.x + self.dim.width * pos.y];
+    }
+};
+
+pub const Tile = enum {
+    WALL,
+    FLOOR,
+
+    const Self = @This();
+
+    pub fn toU8(self: Self) u8 {
+        return switch (self) {
+            .WALL => '#',
+            .FLOOR => '.',
+        };
     }
 };

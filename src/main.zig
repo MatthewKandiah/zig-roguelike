@@ -11,9 +11,17 @@ const Colour = @import("types.zig").Colour;
 const Rectangle = @import("types.zig").Rectangle;
 const Position = @import("types.zig").Position;
 const DrawData = @import("types.zig").DrawData;
-const CharGrid = @import("types.zig").CharGrid;
+const TileGrid = @import("types.zig").TileGrid;
 const Surface = @import("surface.zig").Surface;
 const CharMap = @import("charmap.zig").CharMap;
+const Tile = @import("types.zig").Tile;
+
+pub const GameState = struct {
+    // map data
+    tile_grid: TileGrid,
+    // player data
+    player_pos: Position,
+};
 
 pub fn main() !void {
     sdlInit();
@@ -30,6 +38,8 @@ pub fn main() !void {
     var input_data: [*]u8 = undefined;
     input_data = stb.stbi_load(@ptrCast("src/assets/charmap-oldschool-white.png"), &input_width, &input_height, &input_bytes_per_pixel, 0);
 
+    const PLAYER_CHAR = '@';
+
     const char_map = try CharMap.load(
         input_data,
         .{ .width = @as(usize, @abs(input_width)), .height = @as(usize, @abs(input_height)) },
@@ -38,29 +48,42 @@ pub fn main() !void {
         allocator,
     );
 
-    const char_grid: CharGrid = .{
-        .dim = .{ .width = 8, .height = 5 },
-        .chars = &[_]u8{
-            '#', '#', '#', '#', '#', '#', '#', '#',
-            '#', '.', '.', '.', '.', '.', '.', '#',
-            '#', '.', 'M', '@', 't', 'T', '.', '#',
-            '#', '.', '.', '.', '.', '.', '.', '#',
-            '#', '#', '#', '#', '#', '#', '#', '#',
+    var game_state: GameState = .{
+        .tile_grid = .{
+            .dim = .{ .width = 8, .height = 5 },
+            .tiles = &[_]Tile{
+                Tile.WALL, Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,
+                Tile.WALL, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.WALL,
+                Tile.WALL, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.WALL,
+                Tile.WALL, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.WALL,
+                Tile.WALL, Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,
+            },
         },
+        .player_pos = .{ .x = 2, .y = 1 },
     };
 
     stb.stbi_image_free(input_data);
 
     var running = true;
     var event: c.SDL_Event = undefined;
+    const grid_pos = Position{ .x = 0, .y = 0 };
+    const scale_factor = 5;
     while (running) {
         surface.clear();
 
         surface.drawGrid(
-            .{ .x = 10, .y = 20 },
+            grid_pos,
             char_map,
-            char_grid,
-            5,
+            game_state.tile_grid,
+            scale_factor,
+        );
+
+        surface.drawTile(
+            PLAYER_CHAR,
+            grid_pos,
+            game_state.player_pos,
+            char_map,
+            scale_factor,
         );
 
         updateScreen(window);
@@ -72,6 +95,10 @@ pub fn main() !void {
             if (event.type == c.SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     c.SDLK_ESCAPE => running = false,
+                    c.SDLK_UP => game_state.player_pos.y -= 1,
+                    c.SDLK_DOWN => game_state.player_pos.y += 1,
+                    c.SDLK_RIGHT => game_state.player_pos.x += 1,
+                    c.SDLK_LEFT => game_state.player_pos.x -= 1,
                     else => {},
                 }
             }
