@@ -23,17 +23,25 @@ pub const CharMap = struct {
                 for (0..char_dim.height) |pixel_j| {
                     for (0..char_dim.width) |pixel_i| {
                         const pixel_index: usize = tile_i * char_dim.width + pixel_i + image_dim.width * (tile_j * char_dim.height + pixel_j);
-                        if (input_bytes_per_pixel != 3) {
-                            @panic("Input image using more than 3 channels, not supported yet");
+                        if (input_bytes_per_pixel == 3) {
+                            output_data[output_index] = 0; // x
+                            output_index += 1;
+                            output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 0]; // r
+                            output_index += 1;
+                            output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 1]; // g
+                            output_index += 1;
+                            output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 2]; // b
+                            output_index += 1;
+                        } else {
+                            output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 3]; // x
+                            output_index += 1;
+                            output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 0]; // r
+                            output_index += 1;
+                            output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 1]; // g
+                            output_index += 1;
+                            output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 2]; // b
+                            output_index += 1;
                         }
-                        output_data[output_index] = 0; // x
-                        output_index += 1;
-                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 0]; // r
-                        output_index += 1;
-                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 1]; // g
-                        output_index += 1;
-                        output_data[output_index] = input_data[input_bytes_per_pixel * pixel_index + 2]; // b
-                        output_index += 1;
                     }
                 }
             }

@@ -36,7 +36,7 @@ pub fn main() !void {
     var input_height: c_int = undefined;
     var input_bytes_per_pixel: c_int = undefined;
     var input_data: [*]u8 = undefined;
-    input_data = stb.stbi_load(@ptrCast("src/assets/charmap-oldschool-white.png"), &input_width, &input_height, &input_bytes_per_pixel, 0);
+    input_data = stb.stbi_load(@ptrCast("src/assets/16px_font.png"), &input_width, &input_height, &input_bytes_per_pixel, 0);
 
     const PLAYER_CHAR = '@';
 
@@ -44,7 +44,7 @@ pub fn main() !void {
         input_data,
         .{ .width = @as(usize, @abs(input_width)), .height = @as(usize, @abs(input_height)) },
         @as(usize, @abs(input_bytes_per_pixel)),
-        .{ .width = 7, .height = 9 },
+        .{ .width = 16, .height = 16 },
         allocator,
     );
 
