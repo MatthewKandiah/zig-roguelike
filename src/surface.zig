@@ -27,6 +27,12 @@ pub const Surface = struct {
         };
     }
 
+    pub fn clear(self: Self) void {
+        for (0..self.width * self.height * BYTES_PER_PIXEL) |i| {
+            self.pixels[i] = 0;
+        }
+    }
+
     pub fn update(self: *Self, window: *c.struct_SDL_Window) void {
         const surface: *c.struct_SDL_Surface = c.SDL_GetWindowSurface(window) orelse sdlPanic();
         const pixels: [*]u8 = @ptrCast(surface.pixels orelse @panic("SDL surface has not allocated pixels"));

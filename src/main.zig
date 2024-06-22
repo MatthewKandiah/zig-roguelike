@@ -42,8 +42,8 @@ pub fn main() !void {
     var running = true;
     var event: c.SDL_Event = undefined;
     while (running) {
-        // TODO - clear screen
-        // TODO - draw entities
+        surface.clear();
+
         const scale_factor = 8;
         const image_data_index = getCharImageDataIndex('J');
         const char_draw_data = char_map.drawData(image_data_index);
