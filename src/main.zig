@@ -67,7 +67,7 @@ pub fn main() !void {
     var running = true;
     var event: c.SDL_Event = undefined;
     const grid_pos = Position{ .x = 0, .y = 0 };
-    const scale_factor = 5;
+    const scale_factor = 2;
     while (running) {
         surface.clear();
 
