@@ -36,3 +36,14 @@ pub const Colour = struct {
     pub const blue = Self{ .r = 0, .g = 0, .b = 255 };
     pub const yellow = Self{ .r = 255, .g = 255, .b = 0 };
 };
+
+pub const CharGrid = struct {
+    chars: []const u8,
+    dim: Dimensions,
+
+    const Self = @This();
+
+    pub fn get(self: Self, pos: Position) u8 {
+        return self.chars[pos.x + self.dim.width * pos.y];
+    }
+};

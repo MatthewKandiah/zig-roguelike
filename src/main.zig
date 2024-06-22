@@ -11,12 +11,13 @@ const Colour = @import("types.zig").Colour;
 const Rectangle = @import("types.zig").Rectangle;
 const Position = @import("types.zig").Position;
 const DrawData = @import("types.zig").DrawData;
+const CharGrid = @import("types.zig").CharGrid;
 const Surface = @import("surface.zig").Surface;
 const CharMap = @import("charmap.zig").CharMap;
 
 pub fn main() !void {
     sdlInit();
-    const window = createWindow("zig-roguelike", 300, 300);
+    const window = createWindow("zig-roguelike", 800, 600);
     checkPixelFormat(window);
     var surface = Surface.from_sdl_window(window);
 
@@ -37,6 +38,17 @@ pub fn main() !void {
         allocator,
     );
 
+    const char_grid: CharGrid = .{
+        .dim = .{ .width = 8, .height = 5 },
+        .chars = &[_]u8{
+            '#', '#', '#', '#', '#', '#', '#', '#',
+            '#', '.', '.', '.', '.', '.', '.', '#',
+            '#', '.', 'M', '@', 't', 'T', '.', '#',
+            '#', '.', '.', '.', '.', '.', '.', '#',
+            '#', '#', '#', '#', '#', '#', '#', '#',
+        },
+    };
+
     stb.stbi_image_free(input_data);
 
     var running = true;
@@ -44,13 +56,11 @@ pub fn main() !void {
     while (running) {
         surface.clear();
 
-        const scale_factor = 8;
-        const image_data_index = getCharImageDataIndex('J');
-        const char_draw_data = char_map.drawData(image_data_index);
-        surface.draw(
-            char_draw_data,
-            .{ .x = 0, .y = 0 },
-            scale_factor,
+        surface.drawGrid(
+            .{ .x = 10, .y = 20 },
+            char_map,
+            char_grid,
+            5,
         );
 
         updateScreen(window);

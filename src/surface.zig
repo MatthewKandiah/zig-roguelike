@@ -6,8 +6,12 @@ const stb = @cImport({
     @cInclude("stb_image.h");
 });
 const sdlPanic = @import("main.zig").sdlPanic;
+const getCharImageDataIndex = @import("main.zig").getCharImageDataIndex;
 const DrawData = @import("types.zig").DrawData;
 const Position = @import("types.zig").Position;
+const Dimensions = @import("types.zig").Dimensions;
+const CharGrid = @import("types.zig").CharGrid;
+const CharMap = @import("charmap.zig").CharMap;
 const BYTES_PER_PIXEL = @import("main.zig").BYTES_PER_PIXEL;
 
 pub const Surface = struct {
@@ -74,6 +78,21 @@ pub const Surface = struct {
                     scale_repeats_y = 0;
                     input_pixel_index += 1;
                 }
+            }
+        }
+    }
+
+    pub fn drawGrid(self: Self, pos: Position, char_map: CharMap, char_grid: CharGrid, scale_factor: usize) void {
+        for (0..char_grid.dim.height) |j| {
+            for (0..char_grid.dim.width) |i| {
+                const current_tile_pos = Position{ .x = i, .y = j };
+                const char_index = getCharImageDataIndex(char_grid.get(current_tile_pos));
+                const draw_data = char_map.drawData(char_index);
+                const current_pixel_pos = Position{
+                    .x = pos.x + (i * char_map.char_dim.width * scale_factor),
+                    .y = pos.y + (j * char_map.char_dim.height * scale_factor),
+                };
+                self.draw(draw_data, current_pixel_pos, scale_factor);
             }
         }
     }
