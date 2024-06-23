@@ -39,7 +39,34 @@ pub const Dimensions = struct {
     }
 };
 
-pub const Rectangle = struct { pos: Position, dim: Dimensions };
+pub const Rectangle = struct {
+    pos: Position,
+    dim: Dimensions,
+
+    const Self = @This();
+
+    pub fn left(self: Self) usize {
+        return self.pos.x;
+    }
+
+    pub fn right(self: Self) usize {
+        return self.pos.x + self.dim.width;
+    }
+
+    // NOTE - top as you look at it => lower y-value than bottom
+    //        so be careful with comparisons
+    pub fn top(self: Self) usize {
+        return self.pos.y;
+    }
+
+    pub fn bottom(self: Self) usize {
+        return self.pos.y + self.dim.height;
+    }
+
+    pub fn overlaps(self: Self, rect: Rectangle) bool {
+        return self.left() <= rect.right() and self.right() >= rect.left() and self.top() <= rect.bottom() and self.bottom() >= rect.top();
+    }
+};
 
 pub const Colour = struct {
     r: u8,
@@ -81,10 +108,10 @@ pub const TileGrid = struct {
         };
     }
 
-    pub fn add_room(self: *Self, pos: Position, dim: Dimensions) void {
-        for (0..dim.height) |j| {
-            for (0..dim.width) |i| {
-                self.tiles[pos.x + i + (pos.y + j) * self.dim.width] = .FLOOR;
+    pub fn add_room(self: *Self, room: Rectangle) void {
+        for (0..room.dim.height) |j| {
+            for (0..room.dim.width) |i| {
+                self.tiles[room.pos.x + i + (room.pos.y + j) * self.dim.width] = .FLOOR;
             }
         }
     }
