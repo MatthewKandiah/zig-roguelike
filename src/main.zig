@@ -10,6 +10,7 @@ const Dimensions = @import("types.zig").Dimensions;
 const Colour = @import("types.zig").Colour;
 const Rectangle = @import("types.zig").Rectangle;
 const Position = @import("types.zig").Position;
+const PositionDelta = @import("types.zig").PositionDelta;
 const DrawData = @import("types.zig").DrawData;
 const TileGrid = @import("types.zig").TileGrid;
 const Surface = @import("surface.zig").Surface;
@@ -21,6 +22,15 @@ pub const GameState = struct {
     tile_grid: TileGrid,
     // player data
     player_pos: Position,
+
+    const Self = @This();
+
+    pub fn handleMove(self: *Self, delta: PositionDelta) void {
+        const new_pos = self.player_pos.add(delta);
+        if (self.tile_grid.get(new_pos) == .FLOOR) {
+            self.player_pos = new_pos;
+        }
+    }
 };
 
 pub fn main() !void {
@@ -95,10 +105,10 @@ pub fn main() !void {
             if (event.type == c.SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     c.SDLK_ESCAPE => running = false,
-                    c.SDLK_UP => game_state.player_pos.y -= 1,
-                    c.SDLK_DOWN => game_state.player_pos.y += 1,
-                    c.SDLK_RIGHT => game_state.player_pos.x += 1,
-                    c.SDLK_LEFT => game_state.player_pos.x -= 1,
+                    c.SDLK_UP => game_state.handleMove(.{ .y = 1, .y_sign = .MINUS }),
+                    c.SDLK_DOWN => game_state.handleMove(.{ .y = 1, .y_sign = .PLUS }),
+                    c.SDLK_RIGHT => game_state.handleMove(.{ .x = 1, .x_sign = .PLUS }),
+                    c.SDLK_LEFT => game_state.handleMove(.{ .x = 1, .x_sign = .MINUS }),
                     else => {},
                 }
             }

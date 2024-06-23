@@ -3,7 +3,28 @@ pub const DrawData = struct {
     width: usize,
 };
 
-pub const Position = struct { x: usize, y: usize };
+pub const Position = struct {
+    x: usize,
+    y: usize,
+
+    const Self = @This();
+
+    pub fn add(self: Self, delta: PositionDelta) Self {
+        const new_x = switch (delta.x_sign) {
+            .PLUS => self.x + delta.x,
+            .MINUS => self.x - delta.x,
+        };
+        const new_y = switch (delta.y_sign) {
+            .PLUS => self.y + delta.y,
+            .MINUS => self.y - delta.y,
+        };
+        return .{ .x = new_x, .y = new_y };
+    }
+};
+
+pub const Sign = enum { PLUS, MINUS };
+
+pub const PositionDelta = struct { x: usize = 0, x_sign: Sign = .PLUS, y: usize = 0, y_sign: Sign = .PLUS };
 
 pub const Dimensions = struct {
     width: usize,
