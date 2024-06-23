@@ -16,6 +16,8 @@ pub fn plotLine(p0: Position, p1: Position, allocator: std.mem.Allocator) ![]Pos
         return plotLineLowPos(pl, pr, allocator);
     } else if (!is_gradient_positive and is_gradient_steeper_than_1) {
         return plotLineHighNeg(pr, pl, allocator);
+    } else if (!is_gradient_positive and !is_gradient_steeper_than_1) {
+        return plotLineLowNeg(pl, pr, allocator);
     } else unreachable;
 }
 
@@ -101,7 +103,27 @@ test "should work where gradient is between -1 and 0" {
     const p0 = Position{ .x = 0, .y = 4 };
     const p1 = Position{ .x = 6, .y = 1 };
 
-    const result = try plotLineLowNeg(p0, p1, allocator);
+    const result = try plotLine(p0, p1, allocator);
+
+    const expected = [_]Position{
+        .{ .x = 0, .y = 4 },
+        .{ .x = 1, .y = 4 },
+        .{ .x = 2, .y = 3 },
+        .{ .x = 3, .y = 3 },
+        .{ .x = 4, .y = 2 },
+        .{ .x = 5, .y = 2 },
+        .{ .x = 6, .y = 1 },
+    };
+    try std.testing.expectEqualSlices(Position, &expected, result);
+}
+
+test "should work where gradient is between -1 and 0 with inputs swapped" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    const p0 = Position{ .x = 0, .y = 4 };
+    const p1 = Position{ .x = 6, .y = 1 };
+
+    const result = try plotLine(p1, p0, allocator);
 
     const expected = [_]Position{
         .{ .x = 0, .y = 4 },
