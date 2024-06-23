@@ -105,41 +105,40 @@ pub fn main() !void {
         .rooms = &rooms,
     };
     for (game_state.rooms, 0..) |room, i| {
-        game_state.tile_grid.add_room(room);
-        if (i > 0) {
-            const room1 = rooms[i];
-            const room2 = rooms[i - 1];
-            const room1x = random.uintLessThan(usize, room1.dim.width) + room1.pos.x;
-            const room2x = random.uintLessThan(usize, room2.dim.width) + room2.pos.x;
-            const room1y = random.uintLessThan(usize, room1.dim.height) + room1.pos.y;
-            const room2y = random.uintLessThan(usize, room2.dim.height) + room2.pos.y;
-            const corridor_x_start = @min(room1x, room2x);
-            const corridor_x_end = @max(room1x, room2x);
-            const corridor_y_start = @min(room1y, room2y);
-            const corridor_y_end = @max(room1y, room2y);
-            if (i % 2 == 0) {
-                const corridor_across = Rectangle{
-                    .pos = .{ .x = corridor_x_start, .y = room1y },
-                    .dim = .{ .width = corridor_x_end - corridor_x_start, .height = 1 },
-                };
-                const corridor_up = Rectangle{
-                    .pos = .{ .x = room2x, .y = corridor_y_start },
-                    .dim = .{ .width = 1, .height = corridor_y_end - corridor_y_start },
-                };
-                game_state.tile_grid.add_room(corridor_across);
-                game_state.tile_grid.add_room(corridor_up);
-            } else {
-                const corridor_up = Rectangle{
-                    .pos = .{ .x = room1x, .y = corridor_y_start },
-                    .dim = .{ .width = 1, .height = corridor_y_end - corridor_y_start },
-                };
-                const corridor_across = Rectangle{
-                    .pos = .{ .x = corridor_x_start, .y = room2y },
-                    .dim = .{ .width = corridor_x_end - corridor_x_start, .height = 1 },
-                };
-                game_state.tile_grid.add_room(corridor_up);
-                game_state.tile_grid.add_room(corridor_across);
-            }
+        game_state.tile_grid.addRectangle(room);
+        const room2_index = if (i > 0) i - 1 else ROOMS_PER_FLOOR - 1;
+        const room1 = rooms[i];
+        const room2 = rooms[room2_index];
+        const room1x = random.uintLessThan(usize, room1.dim.width) + room1.pos.x;
+        const room2x = random.uintLessThan(usize, room2.dim.width) + room2.pos.x;
+        const room1y = random.uintLessThan(usize, room1.dim.height) + room1.pos.y;
+        const room2y = random.uintLessThan(usize, room2.dim.height) + room2.pos.y;
+        const corridor_x_start = @min(room1x, room2x);
+        const corridor_x_end = @max(room1x, room2x);
+        const corridor_y_start = @min(room1y, room2y);
+        const corridor_y_end = @max(room1y, room2y);
+        if (i % 2 == 0) {
+            const corridor_across = Rectangle{
+                .pos = .{ .x = corridor_x_start, .y = room1y },
+                .dim = .{ .width = corridor_x_end - corridor_x_start, .height = 1 },
+            };
+            const corridor_up = Rectangle{
+                .pos = .{ .x = room2x, .y = corridor_y_start },
+                .dim = .{ .width = 1, .height = corridor_y_end - corridor_y_start },
+            };
+            game_state.tile_grid.addRectangle(corridor_across);
+            game_state.tile_grid.addRectangle(corridor_up);
+        } else {
+            const corridor_up = Rectangle{
+                .pos = .{ .x = room1x, .y = corridor_y_start },
+                .dim = .{ .width = 1, .height = corridor_y_end - corridor_y_start },
+            };
+            const corridor_across = Rectangle{
+                .pos = .{ .x = corridor_x_start, .y = room2y },
+                .dim = .{ .width = corridor_x_end - corridor_x_start, .height = 1 },
+            };
+            game_state.tile_grid.addRectangle(corridor_up);
+            game_state.tile_grid.addRectangle(corridor_across);
         }
     }
 

@@ -108,7 +108,7 @@ pub const TileGrid = struct {
         };
     }
 
-    pub fn add_room(self: *Self, room: Rectangle) void {
+    pub fn addRectangle(self: *Self, room: Rectangle) void {
         for (0..room.dim.height) |j| {
             for (0..room.dim.width) |i| {
                 self.tiles[room.pos.x + i + (room.pos.y + j) * self.dim.width] = .FLOOR;
