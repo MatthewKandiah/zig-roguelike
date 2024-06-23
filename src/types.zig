@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const DrawData = struct {
     bytes: []u8,
     width: usize,
@@ -59,13 +61,32 @@ pub const Colour = struct {
 };
 
 pub const TileGrid = struct {
-    tiles: []const Tile,
+    tiles: []Tile,
     dim: Dimensions,
 
     const Self = @This();
 
     pub fn get(self: Self, pos: Position) Tile {
         return self.tiles[pos.x + self.dim.width * pos.y];
+    }
+
+    pub fn fill(dim: Dimensions, tile: Tile, allocator: std.mem.Allocator) !Self {
+        const tiles = try allocator.alloc(Tile, dim.area());
+        for (tiles) |*t| {
+            t.* = tile;
+        }
+        return Self{
+            .dim = dim,
+            .tiles = tiles,
+        };
+    }
+
+    pub fn add_room(self: *Self, pos: Position, dim: Dimensions) void {
+        for (0..dim.height) |j| {
+            for (0..dim.width) |i| {
+                self.tiles[pos.x + i + (pos.y + j) * self.dim.width] = .FLOOR;
+            }
+        }
     }
 };
 

@@ -35,7 +35,7 @@ pub const GameState = struct {
 
 pub fn main() !void {
     sdlInit();
-    const window = createWindow("zig-roguelike", 800, 600);
+    const window = createWindow("zig-roguelike", 1920, 1080);
     checkPixelFormat(window);
     var surface = Surface.from_sdl_window(window);
 
@@ -58,25 +58,20 @@ pub fn main() !void {
         allocator,
     );
 
+    // rng to generate rooms and corridors
+    // var rng = std.rand.DefaultPrng.init(42).random();
     var game_state: GameState = .{
-        .tile_grid = .{
-            .dim = .{ .width = 8, .height = 5 },
-            .tiles = &[_]Tile{
-                Tile.WALL, Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,
-                Tile.WALL, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.WALL,
-                Tile.WALL, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.WALL,
-                Tile.WALL, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.FLOOR, Tile.WALL,
-                Tile.WALL, Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,  Tile.WALL,
-            },
-        },
+        .tile_grid = try TileGrid.fill(.{ .width = 60, .height = 30 }, .WALL, allocator),
         .player_pos = .{ .x = 2, .y = 1 },
     };
+    game_state.tile_grid.add_room(.{ .x = 1, .y = 1 }, .{ .width = 5, .height = 3 });
+    game_state.tile_grid.add_room(.{ .x = 15, .y = 8 }, .{ .width = 12, .height = 6 });
 
     stb.stbi_image_free(input_data);
 
     var running = true;
     var event: c.SDL_Event = undefined;
-    const grid_pos = Position{ .x = 0, .y = 0 };
+    const grid_pos = Position{ .x = 1, .y = 1 };
     const scale_factor = 2;
     while (running) {
         surface.clear();
