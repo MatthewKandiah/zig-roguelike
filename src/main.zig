@@ -16,6 +16,7 @@ const TileGrid = @import("types.zig").TileGrid;
 const Surface = @import("surface.zig").Surface;
 const CharMap = @import("charmap.zig").CharMap;
 const Tile = @import("types.zig").Tile;
+const bresenham = @import("bresenham.zig");
 
 pub const GameState = struct {
     // map data
@@ -30,6 +31,22 @@ pub const GameState = struct {
         const new_pos = self.player_pos.add(delta);
         if (self.tile_grid.get(new_pos) == .FLOOR) {
             self.player_pos = new_pos;
+        }
+    }
+
+    // TODO - current plan is very obviously slow
+    pub fn updateVisibleTiles(self: *Self, allocator: std.mem.Allocator) !void {
+        for (0..self.tile_grid.dim.height) |j| {
+            tile_loop: for (0..self.tile_grid.dim.width) |i| {
+                const ray = try bresenham.plotLine(.{ .x = i, .y = j }, self.player_pos, allocator);
+                for (ray) |pos| {
+                    if (self.tile_grid.get(pos) == .WALL) {
+                        self.tile_grid.is_tile_visible[self.tile_grid.posToIndex(.{ .x = i, .y = j })] = false;
+                        continue :tile_loop;
+                    }
+                }
+                self.tile_grid.is_tile_visible[self.tile_grid.posToIndex(.{ .x = i, .y = j })] = true;
+            }
         }
     }
 };
@@ -61,7 +78,9 @@ pub fn main() !void {
     stb.stbi_image_free(input_data);
 
     const tile_grid_dim: Dimensions = .{ .width = 60, .height = 30 };
-    var rng = std.rand.DefaultPrng.init(@intCast(std.time.timestamp()));
+    const random_seed = 42;
+    // const random_seed = @intCast(std.time.timestamp());
+    var rng = std.rand.DefaultPrng.init(random_seed);
     var random = rng.random();
     const ROOMS_PER_FLOOR = 12;
     const ROOM_MIN_SIZE = 4;
@@ -148,6 +167,8 @@ pub fn main() !void {
     const scale_factor = 2;
     while (running) {
         surface.clear();
+
+        try game_state.updateVisibleTiles(allocator);
 
         surface.drawGrid(
             grid_pos,

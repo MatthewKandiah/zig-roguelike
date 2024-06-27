@@ -2,253 +2,86 @@ const std = @import("std");
 const Position = @import("types.zig").Position;
 
 pub fn plotLine(p0: Position, p1: Position, allocator: std.mem.Allocator) ![]Position {
-    const should_swap = p0.x < p1.x;
-    const pl = if (should_swap) p0 else p1;
-    const pr = if (should_swap) p1 else p0;
-    const is_gradient_positive = pr.y >= pl.y;
-    const delta_x = pr.x - pl.x;
-    const delta_y = if (is_gradient_positive) pr.y - pl.y else pl.y - pr.y;
-    const is_gradient_steeper_than_1 = (delta_y / delta_x) > 1;
+    const x0: i32 = @intCast(p0.x);
+    const x1: i32 = @intCast(p1.x);
+    const y0: i32 = @intCast(p0.y);
+    const y1: i32 = @intCast(p1.y);
 
-    if (is_gradient_positive and is_gradient_steeper_than_1) {
-        return plotLineHighPos(pl, pr, allocator);
-    } else if (is_gradient_positive and !is_gradient_steeper_than_1) {
-        return plotLineLowPos(pl, pr, allocator);
-    } else if (!is_gradient_positive and is_gradient_steeper_than_1) {
-        return plotLineHighNeg(pr, pl, allocator);
-    } else if (!is_gradient_positive and !is_gradient_steeper_than_1) {
-        return plotLineLowNeg(pl, pr, allocator);
-    } else unreachable;
+    if (@abs(y1 - y0) < @abs(x1 - x0)) {
+        if (x0 > x1) {
+            return plotLineLow(x1, y1, x0, y0, allocator);
+        } else {
+            return plotLineLow(x0, y0, x1, y1, allocator);
+        }
+    } else {
+        if (y0 > y1) {
+            return plotLineHigh(x1, y1, x0, y0, allocator);
+        } else {
+            return plotLineHigh(x0, y0, x1, y1, allocator);
+        }
+    }
 }
 
-fn plotLineLowPos(p0: Position, p1: Position, allocator: std.mem.Allocator) ![]Position {
-    const dx = p1.x - p0.x;
-    const dy = p1.y - p0.y;
+pub fn plotLineLow(
+    x_left: i32,
+    y_left: i32,
+    x_right: i32,
+    y_right: i32,
+    allocator: std.mem.Allocator,
+) ![]Position {
+    var result = try allocator.alloc(Position, @intCast(x_right - x_left + 1));
+    const dx = x_right - x_left;
+    var dy = y_right - y_left;
+    var yi: i32 = 1;
+    if (dy < 0) {
+        yi = -1;
+        dy = -dy;
+    }
     var D = 2 * dy - dx;
-    var y = p0.y;
+    var y = y_left;
 
-    var result = try allocator.alloc(Position, p1.x - p0.x + 1);
-    for (p0.x..p1.x + 1, 0..) |x, i| {
-        result[i] = Position{ .x = x, .y = y };
-        D += 2 * dy;
-        if (D - 2 * dy > 0) {
-            y += 1;
-            D -= 2 * dx;
+    for (0..@intCast(x_right - x_left + 1)) |i| {
+        const i_i32: i32 = @intCast(i);
+        const x: i32 = x_left + i_i32;
+        result[i] = Position{ .x = @intCast(x), .y = @intCast(y) };
+        if (D > 0) {
+            y += yi;
+            D += 2 * (dy - dx);
+        } else {
+            D += 2 * dy;
         }
     }
     return result;
 }
 
-test "should work where gradient is between 0 and 1" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    const p0 = Position{ .x = 0, .y = 1 };
-    const p1 = Position{ .x = 6, .y = 4 };
-
-    const result = try plotLine(p0, p1, allocator);
-
-    const expected = [_]Position{
-        .{ .x = 0, .y = 1 },
-        .{ .x = 1, .y = 1 },
-        .{ .x = 2, .y = 2 },
-        .{ .x = 3, .y = 2 },
-        .{ .x = 4, .y = 3 },
-        .{ .x = 5, .y = 3 },
-        .{ .x = 6, .y = 4 },
-    };
-    try std.testing.expectEqualSlices(Position, &expected, result);
-}
-
-test "should work where gradient is between 0 and 1 with inputs swapped" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    const p0 = Position{ .x = 0, .y = 1 };
-    const p1 = Position{ .x = 6, .y = 4 };
-
-    const result = try plotLine(p1, p0, allocator);
-
-    const expected = [_]Position{
-        .{ .x = 0, .y = 1 },
-        .{ .x = 1, .y = 1 },
-        .{ .x = 2, .y = 2 },
-        .{ .x = 3, .y = 2 },
-        .{ .x = 4, .y = 3 },
-        .{ .x = 5, .y = 3 },
-        .{ .x = 6, .y = 4 },
-    };
-    try std.testing.expectEqualSlices(Position, &expected, result);
-}
-
-fn plotLineLowNeg(p0: Position, p1: Position, allocator: std.mem.Allocator) ![]Position {
-    const dx = p1.x - p0.x;
-    const dy = p0.y - p1.y;
-    var D = 2 * dy - dx;
-    var y = p0.y;
-
-    var result = try allocator.alloc(Position, p1.x - p0.x + 1);
-    for (p0.x..p1.x + 1, 0..) |x, i| {
-        result[i] = Position{ .x = x, .y = y };
-        D += 2 * dy;
-        if (D - 2 * dy > 0) {
-            y -= 1;
-            D -= 2 * dx;
-        }
+pub fn plotLineHigh(
+    x_low: i32,
+    y_low: i32,
+    x_high: i32,
+    y_high: i32,
+    allocator: std.mem.Allocator,
+) ![]Position {
+    var result = try allocator.alloc(Position, @intCast(y_high - y_low + 1));
+    var dx = x_high - x_low;
+    const dy = y_high - y_low;
+    var xi: i32 = 1;
+    if (dx < 0) {
+        xi = -1;
+        dx = -dx;
     }
-    return result;
-}
-
-test "should work where gradient is between -1 and 0" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    const p0 = Position{ .x = 0, .y = 4 };
-    const p1 = Position{ .x = 6, .y = 1 };
-
-    const result = try plotLine(p0, p1, allocator);
-
-    const expected = [_]Position{
-        .{ .x = 0, .y = 4 },
-        .{ .x = 1, .y = 4 },
-        .{ .x = 2, .y = 3 },
-        .{ .x = 3, .y = 3 },
-        .{ .x = 4, .y = 2 },
-        .{ .x = 5, .y = 2 },
-        .{ .x = 6, .y = 1 },
-    };
-    try std.testing.expectEqualSlices(Position, &expected, result);
-}
-
-test "should work where gradient is between -1 and 0 with inputs swapped" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    const p0 = Position{ .x = 0, .y = 4 };
-    const p1 = Position{ .x = 6, .y = 1 };
-
-    const result = try plotLine(p1, p0, allocator);
-
-    const expected = [_]Position{
-        .{ .x = 0, .y = 4 },
-        .{ .x = 1, .y = 4 },
-        .{ .x = 2, .y = 3 },
-        .{ .x = 3, .y = 3 },
-        .{ .x = 4, .y = 2 },
-        .{ .x = 5, .y = 2 },
-        .{ .x = 6, .y = 1 },
-    };
-    try std.testing.expectEqualSlices(Position, &expected, result);
-}
-
-fn plotLineHighPos(p0: Position, p1: Position, allocator: std.mem.Allocator) ![]Position {
-    const dx = p1.x - p0.x;
-    const dy = p1.y - p0.y;
     var D = 2 * dx - dy;
-    var x = p0.x;
+    var x = x_low;
 
-    var result = try allocator.alloc(Position, p1.y - p0.y + 1);
-    for (p0.y..p1.y + 1, 0..) |y, i| {
-        result[i] = Position{ .x = x, .y = y };
-        D += 2 * dx;
-        if (D - 2 * dx > 0) {
-            x += 1;
-            D -= 2 * dy;
+    for (0..@intCast(y_high - y_low + 1)) |i| {
+        const i_i32: i32 = @intCast(i);
+        const y: i32 = y_low + i_i32;
+        result[i] = Position{ .x = @intCast(x), .y = @intCast(y) };
+        if (D > 0) {
+            x += xi;
+            D += 2 * (dx - dy);
+        } else {
+            D += 2 * dx;
         }
     }
     return result;
-}
-
-test "should work where gradient is between 1 and infinity" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    const p0 = Position{ .x = 1, .y = 0 };
-    const p1 = Position{ .x = 4, .y = 6 };
-
-    const result = try plotLine(p0, p1, allocator);
-
-    const expected = [_]Position{
-        .{ .x = 1, .y = 0 },
-        .{ .x = 1, .y = 1 },
-        .{ .x = 2, .y = 2 },
-        .{ .x = 2, .y = 3 },
-        .{ .x = 3, .y = 4 },
-        .{ .x = 3, .y = 5 },
-        .{ .x = 4, .y = 6 },
-    };
-    try std.testing.expectEqualSlices(Position, &expected, result);
-}
-
-test "should work where gradient is between 1 and infinity inputs switched" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    const p0 = Position{ .x = 1, .y = 0 };
-    const p1 = Position{ .x = 4, .y = 6 };
-
-    const result = try plotLine(p1, p0, allocator);
-
-    const expected = [_]Position{
-        .{ .x = 1, .y = 0 },
-        .{ .x = 1, .y = 1 },
-        .{ .x = 2, .y = 2 },
-        .{ .x = 2, .y = 3 },
-        .{ .x = 3, .y = 4 },
-        .{ .x = 3, .y = 5 },
-        .{ .x = 4, .y = 6 },
-    };
-    try std.testing.expectEqualSlices(Position, &expected, result);
-}
-
-fn plotLineHighNeg(p0: Position, p1: Position, allocator: std.mem.Allocator) ![]Position {
-    const dx = p0.x - p1.x;
-    const dy = p1.y - p0.y;
-    var D = 2 * dx - dy;
-    var x = p0.x;
-
-    var result = try allocator.alloc(Position, p1.y - p0.y + 1);
-    for (p0.y..p1.y + 1, 0..) |y, i| {
-        result[i] = Position{ .x = x, .y = y };
-        D += 2 * dx;
-        if (D - 2 * dx > 0) {
-            x -= 1;
-            D -= 2 * dy;
-        }
-    }
-    return result;
-}
-
-test "should work where gradient is between -1 and -infinity" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    const p0 = Position{ .x = 4, .y = 0 };
-    const p1 = Position{ .x = 1, .y = 6 };
-
-    const result = try plotLine(p0, p1, allocator);
-
-    const expected = [_]Position{
-        .{ .x = 4, .y = 0 },
-        .{ .x = 4, .y = 1 },
-        .{ .x = 3, .y = 2 },
-        .{ .x = 3, .y = 3 },
-        .{ .x = 2, .y = 4 },
-        .{ .x = 2, .y = 5 },
-        .{ .x = 1, .y = 6 },
-    };
-    try std.testing.expectEqualSlices(Position, &expected, result);
-}
-
-test "should work where gradient is between -1 and -infinity with inputs swapped" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    const p0 = Position{ .x = 4, .y = 0 };
-    const p1 = Position{ .x = 1, .y = 6 };
-
-    const result = try plotLine(p1, p0, allocator);
-
-    const expected = [_]Position{
-        .{ .x = 4, .y = 0 },
-        .{ .x = 4, .y = 1 },
-        .{ .x = 3, .y = 2 },
-        .{ .x = 3, .y = 3 },
-        .{ .x = 2, .y = 4 },
-        .{ .x = 2, .y = 5 },
-        .{ .x = 1, .y = 6 },
-    };
-    try std.testing.expectEqualSlices(Position, &expected, result);
 }

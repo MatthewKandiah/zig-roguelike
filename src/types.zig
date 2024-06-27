@@ -89,22 +89,34 @@ pub const Colour = struct {
 
 pub const TileGrid = struct {
     tiles: []Tile,
+    is_tile_visible: []bool,
     dim: Dimensions,
 
     const Self = @This();
 
+    pub fn posToIndex(self: Self, pos: Position) usize {
+        return pos.x + self.dim.width * pos.y;
+    }
+
     pub fn get(self: Self, pos: Position) Tile {
-        return self.tiles[pos.x + self.dim.width * pos.y];
+        return self.tiles[self.posToIndex(pos)];
+    }
+
+    pub fn visible(self: Self, pos: Position) bool {
+        return self.is_tile_visible[self.posToIndex(pos)];
     }
 
     pub fn fill(dim: Dimensions, tile: Tile, allocator: std.mem.Allocator) !Self {
         const tiles = try allocator.alloc(Tile, dim.area());
-        for (tiles) |*t| {
-            t.* = tile;
+        const vis = try allocator.alloc(bool, dim.area());
+        for (0..dim.area()) |i| {
+            tiles[i] = tile;
+            vis[i] = false;
         }
         return Self{
             .dim = dim,
             .tiles = tiles,
+            .is_tile_visible = vis,
         };
     }
 
