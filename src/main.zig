@@ -81,8 +81,7 @@ pub fn main() !void {
     stb.stbi_image_free(input_data);
 
     const tile_grid_dim: Dimensions = .{ .width = 60, .height = 30 };
-    const random_seed = 42;
-    // const random_seed = @intCast(std.time.timestamp());
+    const random_seed: u64 = @intCast(std.time.timestamp());
     var rng = std.rand.DefaultPrng.init(random_seed);
     var random = rng.random();
     const ROOMS_PER_FLOOR = 12;
