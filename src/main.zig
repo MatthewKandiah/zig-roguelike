@@ -39,7 +39,10 @@ pub const GameState = struct {
         for (0..self.tile_grid.dim.height) |j| {
             tile_loop: for (0..self.tile_grid.dim.width) |i| {
                 const ray = try bresenham.plotLine(.{ .x = i, .y = j }, self.player_pos, allocator);
-                for (ray) |pos| {
+                for (ray, 0..) |pos, k| {
+                    if (k == 0 or k == ray.len - 1) {
+                        continue;
+                    }
                     if (self.tile_grid.get(pos) == .WALL) {
                         self.tile_grid.is_tile_visible[self.tile_grid.posToIndex(.{ .x = i, .y = j })] = false;
                         continue :tile_loop;
