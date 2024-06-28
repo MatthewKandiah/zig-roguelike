@@ -179,12 +179,14 @@ pub fn main() !void {
             scale_factor,
         );
 
-        surface.drawTile(
+        try surface.drawTileOverloadColour(
             PLAYER_CHAR,
             grid_pos,
             game_state.player_pos,
             char_map,
             scale_factor,
+            Colour.yellow,
+            allocator,
         );
 
         updateScreen(window);

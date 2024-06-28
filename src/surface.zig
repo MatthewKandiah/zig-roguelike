@@ -14,6 +14,7 @@ const TileGrid = @import("types.zig").TileGrid;
 const Tile = @import("types.zig").Tile;
 const CharMap = @import("charmap.zig").CharMap;
 const BYTES_PER_PIXEL = @import("main.zig").BYTES_PER_PIXEL;
+const Colour = @import("types.zig").Colour;
 
 pub const Surface = struct {
     pixels: [*]u8,
@@ -104,6 +105,16 @@ pub const Surface = struct {
     pub fn drawTile(self: Self, char: u8, grid_offset: Position, tile_pos: Position, char_map: CharMap, scale_factor: usize) void {
         const char_index = getCharImageDataIndex(char);
         const draw_data = char_map.drawData(char_index);
+        const pixel_pos = Position{
+            .x = grid_offset.x + (tile_pos.x * char_map.char_dim.width * scale_factor),
+            .y = grid_offset.y + (tile_pos.y * char_map.char_dim.height * scale_factor),
+        };
+        self.draw(draw_data, pixel_pos, scale_factor);
+    }
+
+    pub fn drawTileOverloadColour(self: Self, char: u8, grid_offset: Position, tile_pos: Position, char_map: CharMap, scale_factor: usize, colour: Colour, allocator: std.mem.Allocator) !void {
+        const char_index = getCharImageDataIndex(char);
+        const draw_data = try char_map.drawData(char_index).overloadColour(colour, allocator);
         const pixel_pos = Position{
             .x = grid_offset.x + (tile_pos.x * char_map.char_dim.width * scale_factor),
             .y = grid_offset.y + (tile_pos.y * char_map.char_dim.height * scale_factor),

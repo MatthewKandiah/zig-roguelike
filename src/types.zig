@@ -1,8 +1,33 @@
 const std = @import("std");
+const BYTES_PER_PIXEL = @import("main.zig").BYTES_PER_PIXEL;
 
 pub const DrawData = struct {
     bytes: []u8,
     width: usize,
+
+    const Self = @This();
+
+    pub fn overloadColour(self: Self, colour: Colour, allocator: std.mem.Allocator) !Self {
+        var result = try allocator.alloc(u8, self.bytes.len);
+        for (0..self.bytes.len / BYTES_PER_PIXEL) |i| {
+            const r = self.bytes[BYTES_PER_PIXEL * i + 1];
+            const g = self.bytes[BYTES_PER_PIXEL * i + 2];
+            const b = self.bytes[BYTES_PER_PIXEL * i + 3];
+            const shouldDraw = r != 0 or g != 0 or b != 0;
+            if (shouldDraw) {
+                result[BYTES_PER_PIXEL * i] = 0;
+                result[BYTES_PER_PIXEL * i + 1] = colour.r;
+                result[BYTES_PER_PIXEL * i + 2] = colour.g;
+                result[BYTES_PER_PIXEL * i + 3] = colour.b;
+            } else {
+                result[BYTES_PER_PIXEL * i] = 0;
+                result[BYTES_PER_PIXEL * i + 1] = 0;
+                result[BYTES_PER_PIXEL * i + 2] = 0;
+                result[BYTES_PER_PIXEL * i + 3] = 0;
+            }
+        }
+        return Self{ .bytes = result, .width = self.width };
+    }
 };
 
 pub const Position = struct {
