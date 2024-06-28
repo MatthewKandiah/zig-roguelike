@@ -49,6 +49,7 @@ pub const GameState = struct {
                     }
                 }
                 self.tile_grid.is_tile_visible[self.tile_grid.posToIndex(.{ .x = i, .y = j })] = true;
+                self.tile_grid.seen_tiles[self.tile_grid.posToIndex(.{ .x = i, .y = j })] = self.tile_grid.tiles[self.tile_grid.posToIndex(.{ .x = i, .y = j })];
             }
         }
     }
@@ -172,11 +173,12 @@ pub fn main() !void {
 
         try game_state.updateVisibleTiles(allocator);
 
-        surface.drawGrid(
+        try surface.drawGrid(
             grid_pos,
             char_map,
             game_state.tile_grid,
             scale_factor,
+            allocator,
         );
 
         try surface.drawTileOverloadColour(

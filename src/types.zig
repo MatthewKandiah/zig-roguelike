@@ -115,6 +115,7 @@ pub const Colour = struct {
 pub const TileGrid = struct {
     tiles: []Tile,
     is_tile_visible: []bool,
+    seen_tiles: []?Tile,
     dim: Dimensions,
 
     const Self = @This();
@@ -131,17 +132,24 @@ pub const TileGrid = struct {
         return self.is_tile_visible[self.posToIndex(pos)];
     }
 
+    pub fn seen(self: Self, pos: Position) ?Tile {
+        return self.seen_tiles[self.posToIndex(pos)];
+    }
+
     pub fn fill(dim: Dimensions, tile: Tile, allocator: std.mem.Allocator) !Self {
         const tiles = try allocator.alloc(Tile, dim.area());
         const vis = try allocator.alloc(bool, dim.area());
+        const seen_tiles = try allocator.alloc(?Tile, dim.area());
         for (0..dim.area()) |i| {
             tiles[i] = tile;
             vis[i] = false;
+            seen_tiles[i] = null;
         }
         return Self{
             .dim = dim,
             .tiles = tiles,
             .is_tile_visible = vis,
+            .seen_tiles = seen_tiles,
         };
     }
 

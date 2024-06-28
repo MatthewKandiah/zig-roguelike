@@ -84,20 +84,29 @@ pub const Surface = struct {
         }
     }
 
-    pub fn drawGrid(self: Self, pos: Position, char_map: CharMap, tile_grid: TileGrid, scale_factor: usize) void {
+    pub fn drawGrid(self: Self, pos: Position, char_map: CharMap, tile_grid: TileGrid, scale_factor: usize, allocator: std.mem.Allocator) !void {
         for (0..tile_grid.dim.height) |j| {
             for (0..tile_grid.dim.width) |i| {
                 const current_tile_pos = Position{ .x = i, .y = j };
-                if (!tile_grid.visible(current_tile_pos)) {
+                const is_visible = tile_grid.visible(current_tile_pos);
+                const seen = tile_grid.seen(current_tile_pos);
+                const is_seen = seen != null;
+                if (!is_visible and !is_seen) {
                     continue;
                 }
-                const char_index = getCharImageDataIndex(tile_grid.get(current_tile_pos).toU8());
-                const draw_data = char_map.drawData(char_index);
                 const current_pixel_pos = Position{
                     .x = pos.x + (i * char_map.char_dim.width * scale_factor),
                     .y = pos.y + (j * char_map.char_dim.height * scale_factor),
                 };
-                self.draw(draw_data, current_pixel_pos, scale_factor);
+                if (is_visible) {
+                    const char_index = getCharImageDataIndex(tile_grid.get(current_tile_pos).toU8());
+                    const draw_data = char_map.drawData(char_index);
+                    self.draw(draw_data, current_pixel_pos, scale_factor);
+                } else if (seen) |s| {
+                    const char_index = getCharImageDataIndex(s.toU8());
+                    const draw_data = try char_map.drawData(char_index).overloadColour(Colour.grey(70), allocator);
+                    self.draw(draw_data, current_pixel_pos, scale_factor);
+                }
             }
         }
     }
