@@ -10,9 +10,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    exe.addIncludePath(.{ .path = "deps/include" });
-    exe.addCSourceFile(.{ .file = .{ .path = "deps/src/stb_image_impl.c" }, .flags = &[_][]u8{} });
-    exe.addCSourceFile(.{ .file = .{ .path = "deps/src/stb_image_write_impl.c" }, .flags = &[_][]u8{} });
+    exe.addIncludePath(.{ .src_path = .{ .owner = b, .sub_path = "deps/include" } });
+    exe.addCSourceFile(.{ .file = .{ .src_path = .{ .owner = b, .sub_path = "deps/src/stb_image_impl.c" } } });
+    exe.addCSourceFile(.{ .file = .{ .src_path = .{ .owner = b, .sub_path = "deps/src/stb_image_write_impl.c" } } });
     // TODO - consider static linking SDL2
     exe.linkSystemLibrary("SDL2");
     exe.linkLibC();
@@ -26,9 +26,9 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     const tests = b.addTest(.{ .root_source_file = b.path("src/main.zig") });
-    tests.addIncludePath(.{ .path = "deps/include" });
-    tests.addCSourceFile(.{ .file = .{ .path = "deps/src/stb_image_impl.c" }, .flags = &[_][]u8{} });
-    tests.addCSourceFile(.{ .file = .{ .path = "deps/src/stb_image_write_impl.c" }, .flags = &[_][]u8{} });
+    tests.addIncludePath(.{ .src_path = .{ .owner = b, .sub_path = "deps/include" } });
+    tests.addCSourceFile(.{ .file = .{ .src_path = .{ .owner = b, .sub_path = "deps/src/stb_image_impl.c" } } });
+    tests.addCSourceFile(.{ .file = .{ .src_path = .{ .owner = b, .sub_path = "deps/src/stb_image_write_impl.c" } } });
     // TODO - consider static linking SDL2
     tests.linkSystemLibrary("SDL2");
     tests.linkLibC();
