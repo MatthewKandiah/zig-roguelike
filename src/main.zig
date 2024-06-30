@@ -18,12 +18,23 @@ const CharMap = @import("charmap.zig").CharMap;
 const Tile = @import("types.zig").Tile;
 const bresenham = @import("bresenham.zig");
 
+const MAX_ENEMIES = 10;
+
+pub const EnemyData = struct {
+    pos: Position,
+    char: u8,
+    colour: Colour,
+};
+
 pub const GameState = struct {
     // map data
     tile_grid: TileGrid,
     rooms: []Rectangle,
     // player data
     player_pos: Position,
+    // enemy data
+    enemy_count: usize,
+    enemies: []EnemyData,
 
     const Self = @This();
 
@@ -121,13 +132,18 @@ pub fn main() !void {
         .x = random.uintLessThan(usize, rooms[0].dim.width) + rooms[0].pos.x,
         .y = random.uintLessThan(usize, rooms[0].dim.height) + rooms[0].pos.y,
     };
+    const enemies = try allocator.alloc(EnemyData, MAX_ENEMIES);
     var game_state: GameState = .{
         .tile_grid = try TileGrid.fill(tile_grid_dim, .WALL, allocator),
         .player_pos = player_initial_pos,
         .rooms = &rooms,
+        .enemy_count = 0,
+        .enemies = enemies,
     };
     for (game_state.rooms, 0..) |room, i| {
+        // draw room
         game_state.tile_grid.addRectangle(room);
+        // draw corridors
         const room2_index = if (i > 0) i - 1 else ROOMS_PER_FLOOR - 1;
         const room1 = rooms[i];
         const room2 = rooms[room2_index];
@@ -162,6 +178,15 @@ pub fn main() !void {
             game_state.tile_grid.addRectangle(corridor_up);
             game_state.tile_grid.addRectangle(corridor_across);
         }
+        // spawn enemies
+        if (i > 0 and i < MAX_ENEMIES) {
+            game_state.enemies[game_state.enemy_count] = EnemyData{
+                .pos = room.centre(),
+                .char = 'g',
+                .colour = Colour.green,
+            };
+            game_state.enemy_count += 1;
+        }
     }
 
     var running = true;
@@ -190,6 +215,21 @@ pub fn main() !void {
             Colour.yellow,
             allocator,
         );
+
+        for (0..game_state.enemy_count) |i| {
+            const enemy = game_state.enemies[i];
+            if (game_state.tile_grid.visible(enemy.pos)) {
+                try surface.drawTileOverloadColour(
+                    game_state.enemies[i].char,
+                    grid_pos,
+                    game_state.enemies[i].pos,
+                    char_map,
+                    scale_factor,
+                    Colour.green,
+                    allocator,
+                );
+            }
+        }
 
         updateScreen(window);
 

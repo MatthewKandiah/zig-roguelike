@@ -91,6 +91,13 @@ pub const Rectangle = struct {
     pub fn overlaps(self: Self, rect: Rectangle) bool {
         return self.left() <= rect.right() and self.right() >= rect.left() and self.top() <= rect.bottom() and self.bottom() >= rect.top();
     }
+
+    pub fn centre(self: Self) Position {
+        return Position{
+            .x = (self.left() + self.right()) / 2,
+            .y = (self.top() + self.bottom()) / 2,
+        };
+    }
 };
 
 pub const Colour = struct {
