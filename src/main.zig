@@ -61,7 +61,7 @@ pub const GameState = struct {
         }
     }
 
-    // TODO - current plan is very obviously slow
+    // TODO - current plan is inefficient, can probably do something to avoid having to check every tile every tick
     pub fn updateVisibleTiles(self: *Self, allocator: std.mem.Allocator) !void {
         for (0..self.tile_grid.dim.height) |j| {
             tile_loop: for (0..self.tile_grid.dim.width) |i| {
