@@ -22,7 +22,9 @@ const MAX_ENEMIES = 10;
 
 pub const EnemyState = enum {
     IDLE,
+    IDLE_TRANSITION,
     ALERT,
+    ALERT_TRANSITION,
     SEARCHING,
 };
 
@@ -36,7 +38,9 @@ pub const EnemyData = struct {
     pub fn colour(self: Self) Colour {
         return switch (self.state) {
             .IDLE => Colour.green,
+            .IDLE_TRANSITION => Colour.white,
             .ALERT => Colour.red,
+            .ALERT_TRANSITION => Colour.blue,
             .SEARCHING => Colour.yellow,
         };
     }
@@ -65,6 +69,7 @@ pub const GameState = struct {
     pub fn updateVisibleTiles(self: *Self, allocator: std.mem.Allocator) !void {
         for (0..self.tile_grid.dim.height) |j| {
             tile_loop: for (0..self.tile_grid.dim.width) |i| {
+                const tile_pos = Position{ .x = i, .y = j };
                 const ray = try bresenham.plotLine(.{ .x = i, .y = j }, self.player_pos, allocator);
                 for (ray, 0..) |pos, k| {
                     if (k == 0 or k == ray.len - 1) {
@@ -72,13 +77,48 @@ pub const GameState = struct {
                     }
                     if (self.tile_grid.get(pos) == .WALL) {
                         self.tile_grid.is_tile_visible[self.tile_grid.posToIndex(.{ .x = i, .y = j })] = false;
+                        if (self.findEnemyIndex(tile_pos)) |idx| {
+                            self.updateNonVisibleEnemyState(idx);
+                        }
                         continue :tile_loop;
                     }
                 }
-                self.tile_grid.is_tile_visible[self.tile_grid.posToIndex(.{ .x = i, .y = j })] = true;
+                self.tile_grid.is_tile_visible[self.tile_grid.posToIndex(tile_pos)] = true;
+                if (self.findEnemyIndex(tile_pos)) |idx| {
+                    self.updateVisibleEnemyState(idx);
+                }
                 self.tile_grid.seen_tiles[self.tile_grid.posToIndex(.{ .x = i, .y = j })] = self.tile_grid.tiles[self.tile_grid.posToIndex(.{ .x = i, .y = j })];
             }
         }
+    }
+
+    fn findEnemyIndex(self: Self, pos: Position) ?usize {
+        for (self.enemies, 0..) |enemy, i| {
+            if (enemy.pos.x == pos.x and enemy.pos.y == pos.y) {
+                return i;
+            }
+        }
+        return null;
+    }
+
+    fn updateNonVisibleEnemyState(self: Self, enemyIndex: usize) void {
+        self.enemies[enemyIndex].state = switch (self.enemies[enemyIndex].state) {
+            .IDLE => .IDLE,
+            .IDLE_TRANSITION => .IDLE,
+            .ALERT => .ALERT_TRANSITION,
+            .ALERT_TRANSITION => .SEARCHING,
+            .SEARCHING => .SEARCHING,
+        };
+    }
+
+    fn updateVisibleEnemyState(self: Self, enemyIndex: usize) void {
+        self.enemies[enemyIndex].state = switch (self.enemies[enemyIndex].state) {
+            .IDLE => .IDLE_TRANSITION,
+            .IDLE_TRANSITION => .ALERT,
+            .ALERT => .ALERT,
+            .ALERT_TRANSITION => .ALERT,
+            .SEARCHING => .ALERT_TRANSITION,
+        };
     }
 };
 
