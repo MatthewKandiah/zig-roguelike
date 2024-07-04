@@ -20,10 +20,26 @@ const bresenham = @import("bresenham.zig");
 
 const MAX_ENEMIES = 10;
 
+pub const EnemyState = enum {
+    IDLE,
+    ALERT,
+    SEARCHING,
+};
+
 pub const EnemyData = struct {
     pos: Position,
     char: u8,
-    colour: Colour,
+    state: EnemyState,
+
+    const Self = @This();
+
+    pub fn colour(self: Self) Colour {
+        return switch (self.state) {
+            .IDLE => Colour.green,
+            .ALERT => Colour.red,
+            .SEARCHING => Colour.yellow,
+        };
+    }
 };
 
 pub const GameState = struct {
@@ -183,7 +199,7 @@ pub fn main() !void {
             game_state.enemies[game_state.enemy_count] = EnemyData{
                 .pos = room.centre(),
                 .char = 'g',
-                .colour = Colour.green,
+                .state = .IDLE,
             };
             game_state.enemy_count += 1;
         }
@@ -220,12 +236,12 @@ pub fn main() !void {
             const enemy = game_state.enemies[i];
             if (game_state.tile_grid.visible(enemy.pos)) {
                 try surface.drawTileOverloadColour(
-                    game_state.enemies[i].char,
+                    enemy.char,
                     grid_pos,
-                    game_state.enemies[i].pos,
+                    enemy.pos,
                     char_map,
                     scale_factor,
-                    Colour.green,
+                    enemy.colour(),
                     allocator,
                 );
             }
