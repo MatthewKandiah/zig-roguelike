@@ -18,7 +18,7 @@ const CharMap = @import("charmap.zig").CharMap;
 const Tile = @import("types.zig").Tile;
 const bresenham = @import("bresenham.zig");
 
-const MAX_ENEMIES = 10;
+const MAX_ENEMIES = 20;
 
 pub const EnemyState = enum {
     IDLE,
@@ -38,7 +38,7 @@ pub const EnemyData = struct {
     pub fn colour(self: Self) Colour {
         return switch (self.state) {
             .IDLE => Colour.green,
-            .IDLE_TRANSITION => Colour.white,
+            .IDLE_TRANSITION => Colour.teal,
             .ALERT => Colour.red,
             .ALERT_TRANSITION => Colour.blue,
             .SEARCHING => Colour.yellow,
@@ -87,7 +87,7 @@ pub const GameState = struct {
                 if (self.findEnemyIndex(tile_pos)) |idx| {
                     self.updateVisibleEnemyState(idx);
                 }
-                self.tile_grid.seen_tiles[self.tile_grid.posToIndex(.{ .x = i, .y = j })] = self.tile_grid.tiles[self.tile_grid.posToIndex(.{ .x = i, .y = j })];
+                self.tile_grid.seen_tiles[self.tile_grid.posToIndex(tile_pos)] = self.tile_grid.tiles[self.tile_grid.posToIndex(tile_pos)];
             }
         }
     }
@@ -235,7 +235,7 @@ pub fn main() !void {
             game_state.tile_grid.addRectangle(corridor_across);
         }
         // spawn enemies
-        if (i > 0 and i < MAX_ENEMIES) {
+        if (i > 0 and i <= MAX_ENEMIES) {
             game_state.enemies[game_state.enemy_count] = EnemyData{
                 .pos = room.centre(),
                 .char = 'g',
@@ -289,23 +289,28 @@ pub fn main() !void {
 
         updateScreen(window);
 
-        while (c.SDL_PollEvent(@ptrCast(&event)) != 0) {
-            if (event.type == c.SDL_QUIT) {
-                running = false;
-            }
-            if (event.type == c.SDL_KEYDOWN) {
-                switch (event.key.keysym.sym) {
-                    c.SDLK_ESCAPE => running = false,
-                    c.SDLK_UP => game_state.handleMove(.{ .y = 1, .y_sign = .MINUS }),
-                    c.SDLK_DOWN => game_state.handleMove(.{ .y = 1, .y_sign = .PLUS }),
-                    c.SDLK_RIGHT => game_state.handleMove(.{ .x = 1, .x_sign = .PLUS }),
-                    c.SDLK_LEFT => game_state.handleMove(.{ .x = 1, .x_sign = .MINUS }),
-                    else => {},
+        var waiting_for_input = true;
+        while (waiting_for_input) {
+            while (c.SDL_PollEvent(@ptrCast(&event)) != 0) {
+                if (event.type == c.SDL_QUIT) {
+                    waiting_for_input = false;
+                    running = false;
                 }
-            }
-            if (event.type == c.SDL_WINDOWEVENT) {
-                checkPixelFormat(window);
-                surface.update(window);
+                if (event.type == c.SDL_KEYDOWN) {
+                    waiting_for_input = false;
+                    switch (event.key.keysym.sym) {
+                        c.SDLK_ESCAPE => running = false,
+                        c.SDLK_UP => game_state.handleMove(.{ .y = 1, .y_sign = .MINUS }),
+                        c.SDLK_DOWN => game_state.handleMove(.{ .y = 1, .y_sign = .PLUS }),
+                        c.SDLK_RIGHT => game_state.handleMove(.{ .x = 1, .x_sign = .PLUS }),
+                        c.SDLK_LEFT => game_state.handleMove(.{ .x = 1, .x_sign = .MINUS }),
+                        else => {},
+                    }
+                }
+                if (event.type == c.SDL_WINDOWEVENT) {
+                    checkPixelFormat(window);
+                    surface.update(window);
+                }
             }
         }
     }
